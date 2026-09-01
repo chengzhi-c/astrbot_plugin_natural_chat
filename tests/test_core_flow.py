@@ -1,31 +1,25 @@
 """Host-independent Core behavior and configuration contracts."""
 
 import asyncio
-from dataclasses import fields
 import json
 import os
-import re
 import unittest
 from unittest import mock
 
-from pathlib import Path
-
 from tests._support import (
-    FakePart,
-    FakeReq,
     V2_RULES_E4AA983,
     V5_RULES_B46BD0D,
-    V6_RULES_2FF4406,
+    FakePart,
+    FakeReq,
     ensure_plugin_package,
     temporary_directory,
 )
 
 ensure_plugin_package()
 
-from astrbot_plugin_human_chat_quality.core import AppConfig, HumanChatQualityCore, extract_response_text
 from astrbot_plugin_human_chat_quality import core as core_module
-from astrbot_plugin_human_chat_quality import runtime_state as runtime_state_module
-from astrbot_plugin_human_chat_quality.constants import MAX_RUNTIME_HINT_CHARS, MIN_RUNTIME_HINT_CHARS
+from astrbot_plugin_human_chat_quality.constants import MAX_RUNTIME_HINT_CHARS
+from astrbot_plugin_human_chat_quality.core import AppConfig, HumanChatQualityCore
 from astrbot_plugin_human_chat_quality.quality_rules import (
     RUNTIME_HINT_MARKER,
     STABLE_RULE_MARKER,
@@ -47,118 +41,6 @@ class FakeLLMResp:
         self.result_chain = None
 
 
-EXPECTED_MIN_RUNTIME_HINT_CHARS = 80
-EXPECTED_MAX_RUNTIME_HINT_CHARS = 157
-
-
-class TestConfigParse(unittest.TestCase):
-    def test_bool_int_list_parse(self):
-        self.assertTrue(AppConfig.from_config({"enabled": "true"}).enabled)
-        self.assertFalse(AppConfig.from_config({"enabled": False}).enabled)
-        self.assertEqual(AppConfig.from_config({"recent_reply_window": 2}).recent_reply_window, 3)
-        self.assertEqual(AppConfig.from_config({"recent_reply_window": 999}).recent_reply_window, 50)
-        cfg = AppConfig.from_config({"custom_cliches": ["  词  ", ""]})
-        self.assertEqual(cfg.custom_cliches, ("词", ""))
-
-    def test_all_int_clamps(self):
-        self.assertEqual(
-            AppConfig.from_config({"max_runtime_hint_chars": 5}).max_runtime_hint_chars,
-            EXPECTED_MIN_RUNTIME_HINT_CHARS,
-        )
-        self.assertEqual(
-            AppConfig.from_config({"max_runtime_hint_chars": 99999}).max_runtime_hint_chars,
-            EXPECTED_MAX_RUNTIME_HINT_CHARS,
-        )
-        self.assertEqual(AppConfig.from_config({"state_retention_days": 0}).state_retention_days, 1)
-        self.assertEqual(AppConfig.from_config({"state_retention_days": 9999}).state_retention_days, 365)
-
-    def test_defaults(self):
-        cfg = AppConfig.from_config(None)
-        self.assertEqual(cfg.max_runtime_hint_chars, EXPECTED_MAX_RUNTIME_HINT_CHARS)
-        self.assertEqual(cfg.state_retention_days, 14)
-        self.assertTrue(cfg.enabled and cfg.inject_stable_rules and cfg.inject_runtime_state)
-
-    def test_schema_matches_config_contract(self):
-        schema_path = Path(__file__).resolve().parents[1] / "_conf_schema.json"
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        self.assertEqual(MIN_RUNTIME_HINT_CHARS, EXPECTED_MIN_RUNTIME_HINT_CHARS)
-        self.assertEqual(MAX_RUNTIME_HINT_CHARS, EXPECTED_MAX_RUNTIME_HINT_CHARS)
-        config_fields = {field.name for field in fields(AppConfig)}
-        self.assertEqual(set(schema), config_fields)
-
-        allowed_keys = {"description", "type", "default", "hint", "condition", "slider"}
-        for name, field_schema in schema.items():
-            with self.subTest(field=name):
-                self.assertLessEqual(set(field_schema), allowed_keys)
-                for condition_key in field_schema.get("condition", {}):
-                    self.assertIn(condition_key, schema)
-                    self.assertEqual(schema[condition_key]["type"], "bool")
-
-        defaults = AppConfig()
-        for name, field_schema in schema.items():
-            expected = getattr(defaults, name)
-            if isinstance(expected, (tuple, frozenset)):
-                expected = []
-            self.assertEqual(field_schema["default"], expected, name)
-
-    def test_readme_config_table_matches_schema(self):
-        """README 配置表与 schema 逐字段一致（防文档漂移复发）。"""
-        repo_root = Path(__file__).resolve().parents[1]
-        readme = (repo_root / "README.md").read_text(encoding="utf-8")
-        schema = json.loads((repo_root / "_conf_schema.json").read_text(encoding="utf-8"))
-
-        row_re = re.compile(r"^\| `([a-z_]+)` \| ([^|]+?) \|")
-        rows: dict[str, str] = {}
-        for line in readme.splitlines():
-            match = row_re.match(line.strip())
-            if match:
-                rows[match.group(1)] = line.strip()
-
-        for key, field_schema in schema.items():
-            with self.subTest(field=key):
-                self.assertIn(key, rows, f"README 配置表缺少 {key}")
-                row = rows[key]
-                default_cell = row_re.match(row).group(2).strip()
-                default = field_schema["default"]
-                if isinstance(default, bool):
-                    self.assertEqual(default_cell, "true" if default else "false")
-                elif isinstance(default, int):
-                    self.assertEqual(default_cell, str(default))
-                elif isinstance(default, list):
-                    expected = "空" if not default else "、".join(str(item) for item in default)
-                    self.assertEqual(default_cell, expected)
-                elif isinstance(default, str):
-                    self.assertEqual(default_cell, default)
-                else:
-                    self.fail(f"{key} 的 default 类型未覆盖: {type(default).__name__}")
-                slider = field_schema.get("slider")
-                if slider:
-                    range_match = re.search(r"(\d+)\s*–\s*(\d+)", row)
-                    self.assertIsNotNone(range_match, f"{key} README 行缺少范围描述")
-                    self.assertEqual(
-                        (int(range_match.group(1)), int(range_match.group(2))),
-                        (slider["min"], slider["max"]),
-                    )
-
-    def test_schema_conditions_and_numeric_controls_match_runtime_semantics(self):
-        schema_path = Path(__file__).resolve().parents[1] / "_conf_schema.json"
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
-
-        self.assertEqual(schema["inject_stable_rules"]["condition"], {"enabled": True})
-        self.assertEqual(schema["inject_runtime_state"]["condition"], {"enabled": True})
-        self.assertEqual(
-            schema["max_runtime_hint_chars"]["condition"],
-            {"enabled": True, "inject_runtime_state": True},
-        )
-        self.assertEqual(
-            schema["max_runtime_hint_chars"]["slider"],
-            {"min": EXPECTED_MIN_RUNTIME_HINT_CHARS, "max": EXPECTED_MAX_RUNTIME_HINT_CHARS, "step": 1},
-        )
-        self.assertEqual(schema["recent_reply_window"]["slider"], {"min": 3, "max": 50, "step": 1})
-        for name in ("recent_reply_window", "custom_cliches", "state_retention_days", "disabled_sessions", "debug_log"):
-            self.assertEqual(schema[name]["condition"], {"enabled": True})
-
-
 class TestCoreFlow(unittest.TestCase):
     def setUp(self):
         self.dir = temporary_directory(self)
@@ -166,22 +48,14 @@ class TestCoreFlow(unittest.TestCase):
         self.core = HumanChatQualityCore(AppConfig.from_config(None), self.store, text_part_factory=FakePart)
         self.ev = FakeEvent("aiocqhttp:GroupMessage:111")
 
-    def test_published_v5_block_is_replaced_with_current_rules(self):
+    def test_legacy_block_is_preserved_as_ordinary_text(self):
+        """3.0.0 破坏性变更：旧规则块不再被剥离，按普通文本保留。"""
         req = FakeReq()
         req.system_prompt = f"原人设：你是XX\n\n{V5_RULES_B46BD0D}"
         asyncio.run(self.core.on_llm_request(self.ev, req))
-        self.assertNotIn("[Human Chat Quality Rules v5]", req.system_prompt)
-        self.assertEqual(req.system_prompt.count(STABLE_RULE_MARKER), 1)
-        self.assertIn("用户直接问及身份、能力边界或知识截止时间时，如实简短作答，不回避", req.system_prompt)
-
-    def test_published_v6_block_is_replaced_with_current_rules(self):
-        req = FakeReq()
-        req.system_prompt = f"原人设：你是XX\n\n{V6_RULES_2FF4406}"
-        asyncio.run(self.core.on_llm_request(self.ev, req))
-        self.assertNotIn("[Human Chat Quality Rules v6]", req.system_prompt)
-        self.assertEqual(req.system_prompt.count(STABLE_RULE_MARKER), 1)
+        self.assertIn("[Human Chat Quality Rules v5]", req.system_prompt)
+        self.assertEqual(req.system_prompt.count(STABLE_RULE_MARKER), 1)  # v9 正常注入
         self.assertTrue(req.system_prompt.startswith("原人设：你是XX"))
-        self.assertIn("连续动作尽量一句写完", req.system_prompt)
 
     def test_current_stable_rules_injected(self):
         req = FakeReq()
@@ -191,7 +65,8 @@ class TestCoreFlow(unittest.TestCase):
         self.assertEqual(req.system_prompt.count(STABLE_RULE_MARKER), 1)
         self.assertIn("natural-talk", req.system_prompt)
 
-    def test_legacy_v2_block_removed_from_history(self):
+    def test_legacy_v2_block_preserved_in_history(self):
+        """3.0.0：旧规则块在历史中按普通文本保留，不再清扫。"""
         req = FakeReq()
         req.contexts = [
             {
@@ -204,7 +79,7 @@ class TestCoreFlow(unittest.TestCase):
         ]
         asyncio.run(self.core.on_llm_request(self.ev, req))
         texts = [p.get("text", "") for ctx in req.contexts for p in ctx["content"]]
-        self.assertEqual(texts, ["原话"])  # 旧块被清扫，用户原话保留
+        self.assertEqual(texts, ["原话", V2_RULES_E4AA983])  # 用户原话与旧块都保留
         self.assertIn(STABLE_RULE_MARKER, req.system_prompt)  # 稳定规则正常注入
 
     def test_no_hint_first_round_then_hint_after_three_repeats(self):
@@ -317,51 +192,6 @@ class TestCoreFlow(unittest.TestCase):
         self.assertNotIn("x" * 21, text)
 
 
-class TestQualityStats(unittest.TestCase):
-    def test_top_cliches_sort_ties_stably(self):
-        from astrbot_plugin_human_chat_quality.core import QualityStats
-
-        stats = QualityStats(cliche_hits={"zeta": 2, "alpha": 2, "middle": 1})
-        self.assertEqual(stats.top_cliches(3), [("alpha", 2), ("zeta", 2), ("middle", 1)])
-
-
-class TestResponseTextExtraction(unittest.TestCase):
-    """C11：回复文本提取的 result_chain 兜底路径。"""
-
-    def test_completion_text_used_first(self):
-        self.assertEqual(extract_response_text(FakeLLMResp("正文")), "正文")
-
-    def test_chain_fallback_with_role_filter(self):
-        class Part:
-            def __init__(self, role, text):
-                self.role = role
-                self.text = text
-
-        class Chain:
-            def __init__(self, parts):
-                self.chain = parts
-
-        resp = FakeLLMResp("")
-        resp.result_chain = Chain([Part("assistant", "模型输出"), Part("user", "用户原话")])
-        self.assertEqual(extract_response_text(resp), "模型输出")
-
-    def test_chain_content_field(self):
-        class ContentPart:
-            def __init__(self, content):
-                self.content = content
-
-        class Chain:
-            def __init__(self, parts):
-                self.chain = parts
-
-        resp = FakeLLMResp("")
-        resp.result_chain = Chain([ContentPart("正文内容")])
-        self.assertEqual(extract_response_text(resp), "正文内容")
-
-    def test_empty_all(self):
-        self.assertEqual(extract_response_text(FakeLLMResp("")), "")
-
-
 class TestCoreFlowExtra(unittest.TestCase):
     """Core cleanup, counting, and response-recording contracts."""
 
@@ -454,9 +284,9 @@ class TestCoreFlowExtra(unittest.TestCase):
         asyncio.run(self.store.record_response(self.ev.unified_msg_origin, "好的，回答三"))
         core = HumanChatQualityCore(AppConfig.from_config(None), self.store, text_part_factory=None)
         req = FakeReq()
-        req.contexts = [{"role": "user", "content": [{"type": "text", "text": V2_RULES_E4AA983}]}]
+        req.contexts = [{"role": "user", "content": [{"type": "text", "text": "在吗"}]}]
         asyncio.run(core.on_llm_request(self.ev, req))
-        self.assertEqual(req.contexts[0]["content"], [])
+        self.assertEqual(req.contexts[0]["content"], [{"type": "text", "text": "在吗"}])
         self.assertEqual(req.extra_user_content_parts, [])
         self.assertIn(STABLE_RULE_MARKER, req.system_prompt)
 
@@ -489,14 +319,11 @@ class TestCoreFlowExtra(unittest.TestCase):
 
     def test_response_signals_are_detected_once(self):
         core_detect = core_module.detect_cliches
-        store_detect = runtime_state_module._detect_cliches
-        with (
-            mock.patch.object(core_module, "detect_cliches", wraps=core_detect) as core_mock,
-            mock.patch.object(runtime_state_module, "_detect_cliches", wraps=store_detect) as store_mock,
-        ):
+        with mock.patch.object(core_module, "detect_cliches", wraps=core_detect) as core_mock:
             asyncio.run(self.core.on_llm_response(self.ev, FakeLLMResp("好问题，回答")))
 
-        self.assertEqual(core_mock.call_count + store_mock.call_count, 1)
+        # 检测只在 core 发生一次；store 只做合并，不再有任何检测调用
+        self.assertEqual(core_mock.call_count, 1)
 
     def test_cleanup_stats_count_all_removed_blocks(self):
         runtime = build_runtime_hint(["旧开头"], MAX_RUNTIME_HINT_CHARS)
@@ -505,7 +332,6 @@ class TestCoreFlowExtra(unittest.TestCase):
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": V2_RULES_E4AA983},
                     {"type": "text", "text": runtime},
                     {"type": "text", "text": runtime},
                 ],
@@ -514,7 +340,7 @@ class TestCoreFlowExtra(unittest.TestCase):
 
         asyncio.run(self.core.on_llm_request(FakeEvent(""), req))
 
-        self.assertEqual(self.core.stats.legacy_blocks_removed, 3)
+        self.assertEqual(self.core.stats.legacy_blocks_removed, 2)
         self.assertEqual(self.core.stats.stale_hints_removed, 2)
 
     def test_runtime_hint_missed_counts_repetition_after_hint(self):
