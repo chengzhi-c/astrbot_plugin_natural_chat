@@ -12,7 +12,7 @@ import re
 MAX_AVOID_ITEMS: int = 5  # 避用清单上限（重复开头+套路词合计），上游 budgets 5 项封顶
 MAX_AVOID_ITEM_LEN: int = 20  # 单条避用词最大长度，超长截断成半截即失效，入库过滤口径
 MAX_OPENER_LEN: int = 8  # 开头截断长度（前缀 ≤8 与普通开头同口径）
-# 配置默认值与边界（_conf_schema.json 内镜像一份，JSON 无法引用 Python 常量，以 tests/test_config.py 锚定一致）
+# 配置默认值与边界（_conf_schema.json 内镜像一份，JSON 无法引用 Python 常量，由 tests/test_core_flow.py 锚定一致）
 DEFAULT_STATE_RETENTION_DAYS: int = 14
 MIN_STATE_RETENTION_DAYS: int = 1
 MAX_STATE_RETENTION_DAYS: int = 365
@@ -20,8 +20,7 @@ DEFAULT_RECENT_REPLY_WINDOW: int = 8
 MIN_RECENT_REPLY_WINDOW: int = 3
 MAX_RECENT_REPLY_WINDOW: int = 50
 MIN_RUNTIME_HINT_CHARS: int = 80  # 运行时提示最小字符数（完整短语装入，不截半）
-# 配置上限：按入库口径 53 前缀 + 5×20 + 4 分隔估得；渲染后单项最长 22 字，能否装满 5 项取决于名单的项长分布
-MAX_RUNTIME_HINT_CHARS: int = 157
+MAX_RUNTIME_HINT_CHARS: int = 157  # 上限按入库口径 53 前缀 + 5×20 + 4 分隔估得；渲染后单项最长 22 字
 
 # 检测口径
 OPENER_REPEAT_THRESHOLD: int = 3  # 同一开头在窗口内达3次才视为重复（降低误报）
@@ -29,9 +28,10 @@ CONSECUTIVE_THRESHOLD: int = 2  # 然而连发等固定模式阈值
 DENSITY_BASE: int = 300  # 密度折算基准：每300字一档，长文按比例放宽（上游 engines/detector scale=max(1,len/300)）
 DAY_SECONDS: int = 86400
 STATE_SAVE_DEBOUNCE_SECONDS: float = 0.2  # 普通回复合并写盘；命令与退出仍直接 flush
-YIELD_STICKY_TTL_SECONDS: float = 300.0  # 正式写作/创作让位的进程内续写窗口
+YIELD_STICKY_TTL_SECONDS: float = 300.0  # 语气改写让位后，短口令继续让位的进程内窗口
 STICKY_FOLLOWUP_MAX_LEN: int = 20  # 粘性续写口令最大长度（scene_guard.is_sticky_followup）
-PENDING_SESSION_CAP: int = 256  # 进程内 yield 会话数上限（core._evict_yield_if_needed）
+PASTE_YIELD_MIN_CHARS: int = 60  # 「原文如下」类正文达到该长度才视为转手成品文本（两句通知即够）
+PENDING_SESSION_CAP: int = 256  # 进程内让位会话数上限（core._evict_yield_if_needed）
 
 # 切分正则（供 signal_detectors.detect_opening_cliches 与 runtime_state.extract_opener 共用）
 OPENER_DELIM = re.compile(r"[，,。.!！?？\n\r]")

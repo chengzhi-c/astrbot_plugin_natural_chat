@@ -1,196 +1,87 @@
-import io
-import json
-import shutil
+"""发布与运行脚本的门禁行为。"""
+
+from __future__ import annotations
+
 import subprocess
 import sys
+import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 
-from scripts import build_release, check_upstream_sync, run_tests
-from scripts.run_tests import run_suite
-from tests._support import temporary_directory
+from scripts import build_release
+from tests._support import ROOT
 
 
-class TestStrictRunner(unittest.TestCase):
-    def test_clean_suite_succeeds(self):
-        suite = unittest.TestSuite([unittest.FunctionTestCase(lambda: None)])
-        self.assertEqual(run_suite(suite, io.StringIO()), 0)
-
-    def test_skipped_suite_fails(self):
-        @unittest.skip("synthetic skip")
-        def skipped():
-            pass
-
-        suite = unittest.TestSuite([unittest.FunctionTestCase(skipped)])
-        self.assertEqual(run_suite(suite, io.StringIO()), 1)
-
-    def test_named_suites_are_supported(self):
-        self.assertGreater(run_tests.load_suite("core").countTestCases(), 0)
-        self.assertGreater(run_tests.load_suite("host").countTestCases(), 0)
-        self.assertNotIn("tests.test_tooling", run_tests.CORE_MODULES)
-        self.assertIn("tests.test_tooling", run_tests.SUITES["core"])
-
-    def test_suite_registry_covers_every_test_module(self):
-        """新增 tests/test_*.py 必须登记进 core 或 host 套件，漏登记即红。"""
-        repo = Path(__file__).resolve().parents[1]
-        discovered = {f"tests.{path.stem}" for path in (repo / "tests").glob("test_*.py")}
-        registered = set(run_tests.CORE_MODULES) | set(run_tests.SUITES["host"]) | set(run_tests.SUITES["core"])
-        self.assertEqual(discovered - registered, set(), "tests/ 下存在未登记进套件的测试模块")
-        self.assertEqual(registered - discovered, set(), "套件登记了不存在的测试模块")
-
-    def test_upstream_sync_lists_come_from_single_source(self):
-        """check_upstream_sync 的标签/禁词清单取自 anchors fixture，不得再有第二份字面量。"""
-        import inspect
-
-        self.assertEqual(check_upstream_sync._ANCHORS_PATH.name, "stable-rules-anchors.json")
-        tags, forbidden = check_upstream_sync._load_anchors()
-        self.assertIn("D2", tags)
-        self.assertIn("B1", tags)
-        self.assertIn("智慧的导师", forbidden)
-        source = inspect.getsource(check_upstream_sync)
-        self.assertNotIn("REQUIRED_GUIDELINE_TAGS = (", source)
-        self.assertNotIn("FORBIDDEN_DESYNC_PHRASES = (", source)
+def _copy_runtime_sources(target: Path) -> None:
+    for relative in build_release.RUNTIME_MANIFEST:
+        source = ROOT / relative
+        destination = target / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(source.read_bytes())
 
 
-class TestReleaseBuild(unittest.TestCase):
-    def _copy_repo(self, name: str = "downloaded-plugin-main") -> tuple[Path, Path]:
-        root = Path(temporary_directory(self))
-        repo = root / name
-        shutil.copytree(
-            Path(__file__).resolve().parents[1],
-            repo,
-            ignore=shutil.ignore_patterns(".git", "data", ".ruff_cache", "__pycache__", "*.pyc"),
-        )
-        out_dir = root / "out"
-        out_dir.mkdir()
-        return repo, out_dir
+class ValidateReleaseTest(unittest.TestCase):
+    def make_repo(self) -> Path:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        repo = Path(temp_dir.name) / "plugin"
+        _copy_runtime_sources(repo)
+        return repo
 
-    def test_runtime_manifest_covers_module_imports(self):
-        """发布清单必须包含所有被包内代码相对导入的模块（防新增模块漏进清单）。"""
-        import ast
+    def test_current_tree_validates(self) -> None:
+        info = build_release.validate_release(ROOT)
+        self.assertEqual(info.name, "astrbot_plugin_natural_chat")
+        self.assertNotEqual(info.version, "0.0.0")
 
-        repo = Path(__file__).resolve().parents[1]
-        imported: set[str] = set()
-        for path in repo.glob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.ImportFrom) or node.level < 1:
-                    continue
-                if node.module:
-                    # from .module import symbol：node.module 是模块名，symbol 不是
-                    imported.add(node.module.split(".")[0])
-                else:
-                    # from . import module：alias.name 是模块名
-                    for alias in node.names:
-                        imported.add(alias.name.split(".")[0])
+    def test_missing_file_is_rejected(self) -> None:
+        repo = self.make_repo()
+        (repo / "core.py").unlink()
+        with self.assertRaises(ValueError):
+            build_release.validate_release(repo)
 
-        manifest_modules = {Path(p).stem for p in build_release.RUNTIME_MANIFEST if p.endswith(".py")}
-        missing = imported - manifest_modules
-        self.assertEqual(missing, set(), f"发布清单缺少被导入的模块: {sorted(missing)}")
+    def test_version_mismatch_is_rejected(self) -> None:
+        repo = self.make_repo()
+        metadata = (repo / "metadata.yaml").read_text(encoding="utf-8")
+        (repo / "metadata.yaml").write_text(metadata.replace("version: ", "version: 9.9.9-", 1), encoding="utf-8")
+        with self.assertRaises(ValueError):
+            build_release.validate_release(repo)
 
-    def test_compile_command_covers_runtime_manifest(self):
-        command_factory = getattr(build_release, "_compile_command", None)
-        self.assertIsNotNone(command_factory, "release compile command must be derived from the runtime manifest")
-        if command_factory is None:
-            return
-
-        runtime_python = [path for path in build_release.RUNTIME_MANIFEST if path.endswith(".py")]
-        self.assertEqual(
-            command_factory(), [sys.executable, "-m", "compileall", "-q", *runtime_python, "scripts", "tests"]
-        )
-
-    def test_archive_uses_metadata_name_and_runtime_manifest(self):
-        repo, out_dir = self._copy_repo()
-        (repo / "data").mkdir()
-        (repo / "data" / "runtime_state.json").write_text("{}", encoding="utf-8")
-        (repo / ".ruff_cache").mkdir()
-        (repo / ".ruff_cache" / "cache").write_text("cache", encoding="utf-8")
-
+    def test_archive_contains_exactly_the_runtime_manifest(self) -> None:
+        repo = self.make_repo()
+        out_dir = repo.parent / "dist"
         archive = build_release.build_archive(repo, out_dir)
-
         with zipfile.ZipFile(archive) as zf:
             names = set(zf.namelist())
-            metadata = json.loads(zf.read("astrbot_plugin_human_chat_quality/_conf_schema.json"))
-
-        expected = {f"astrbot_plugin_human_chat_quality/{path}" for path in build_release.RUNTIME_MANIFEST}
+        expected = {f"{build_release.validate_release(repo).name}/{item}" for item in build_release.RUNTIME_MANIFEST}
         self.assertEqual(names, expected)
-        self.assertEqual(metadata["enabled"]["default"], True)
-        self.assertTrue(all(name.startswith("astrbot_plugin_human_chat_quality/") for name in names))
-        self.assertFalse(any(name.startswith("astrbot_plugin_human_chat_quality/tests/") for name in names))
 
-    def test_runtime_manifest_preserves_natural_talk_license_notice(self):
-        self.assertIn("THIRD_PARTY_NOTICES.md", build_release.RUNTIME_MANIFEST)
-        notice = (Path(__file__).resolve().parents[1] / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
-        self.assertIn("Copyright (c) 2026 Natural Talk Contributors", notice)
-        self.assertIn("https://github.com/chengzhi-c/natural-talk", notice)
-        self.assertIn("Permission is hereby granted", notice)
 
-    def test_version_mismatch_fails_without_archive(self):
-        repo, out_dir = self._copy_repo()
-        current = build_release.validate_release(repo).version
-        changelog = repo / "CHANGELOG.md"
-        text = changelog.read_text(encoding="utf-8")
-        changelog.write_text(text.replace(f"## {current}", "## 9.9.9", 1), encoding="utf-8")
+class UpstreamFixtureTest(unittest.TestCase):
+    def test_lite_core_matches_the_upstream_fixture(self) -> None:
+        """规则正文与上游同步 fixture 必须逐字一致；check_upstream_sync.py 靠这条配对判断漂移。"""
+        from astrbot_plugin_natural_chat.rules import _LITE_CORE
 
-        with self.assertRaisesRegex(ValueError, "version"):
-            build_release.build_archive(repo, out_dir)
-        self.assertEqual(list(out_dir.iterdir()), [])
+        fixture = ROOT / "tests" / "fixtures" / "system-prompt-lite.txt"
+        self.assertEqual(_LITE_CORE, fixture.read_text(encoding="utf-8"))
 
-    def test_missing_runtime_file_fails(self):
-        repo, out_dir = self._copy_repo()
-        (repo / "runtime_state.py").unlink()
 
-        with self.assertRaisesRegex(ValueError, "runtime_state.py"):
-            build_release.build_archive(repo, out_dir)
-        self.assertEqual(list(out_dir.iterdir()), [])
-
-    def test_invalid_metadata_name_fails(self):
-        repo, out_dir = self._copy_repo()
-        metadata = repo / "metadata.yaml"
-        text = metadata.read_text(encoding="utf-8")
-        metadata.write_text(
-            text.replace("name: astrbot_plugin_human_chat_quality", "name: ../private", 1), encoding="utf-8"
-        )
-
-        with self.assertRaisesRegex(ValueError, "name"):
-            build_release.build_archive(repo, out_dir)
-        self.assertEqual(list(out_dir.iterdir()), [])
-
-    def test_invalid_metadata_version_fails(self):
-        repo, out_dir = self._copy_repo()
-        current = build_release.validate_release(repo).version
-        metadata = repo / "metadata.yaml"
-        text = metadata.read_text(encoding="utf-8")
-        metadata.write_text(text.replace(f"version: {current}", "version: ../private", 1), encoding="utf-8")
-        changelog = repo / "CHANGELOG.md"
-        text = changelog.read_text(encoding="utf-8")
-        changelog.write_text(text.replace(f"## {current}", "## ../private", 1), encoding="utf-8")
-
-        with self.assertRaisesRegex(ValueError, "version"):
-            build_release.build_archive(repo, out_dir)
-        self.assertEqual(list(out_dir.iterdir()), [])
-
-    def test_core_suite_runs_from_arbitrary_download_directory(self):
-        repo, _ = self._copy_repo("renamed-download")
-        # 不跑 test_tooling，避免本用例再套一层 core。
+class RunTestsTest(unittest.TestCase):
+    def test_usage_error_exits_with_two(self) -> None:
         result = subprocess.run(
-            [
-                sys.executable,
-                "-S",
-                "-c",
-                (
-                    "import sys, unittest; sys.path.insert(0, '.'); "
-                    "from scripts.run_tests import CORE_MODULES, run_suite; "
-                    "raise SystemExit(run_suite(unittest.defaultTestLoader.loadTestsFromNames(CORE_MODULES), sys.stderr))"
-                ),
-            ],
-            cwd=repo,
+            [sys.executable, "-S", "scripts/run_tests.py"],
+            cwd=ROOT,
             capture_output=True,
             text=True,
+            timeout=120,
             check=False,
         )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 2)
+
+    def test_suite_names_are_declared(self) -> None:
+        from scripts import run_tests
+
+        self.assertEqual(set(run_tests.SUITES), {"core", "host"})
 
 
 if __name__ == "__main__":

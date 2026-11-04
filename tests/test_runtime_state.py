@@ -1,964 +1,226 @@
-"""runtime_state 模块契约测试：检测信号（含 natural-talk 扩充与误报控制）、存储容错。
+"""runtime_state 的合并口径、持久化与损伤恢复。"""
 
-无需宿主 astrbot 即可运行（runtime_state 对 logger 做了 ImportError 防护）。
-"""
+from __future__ import annotations
 
 import asyncio
 import json
-import os
-import threading
+import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest import mock
 
-from tests._support import ensure_plugin_package, temporary_directory
+from tests._support import FakeEvent, ensure_plugin_package, stub_astrbot_logger
 
+stub_astrbot_logger()
 ensure_plugin_package()
 
-from astrbot_plugin_human_chat_quality import runtime_state as runtime_state_module
-from astrbot_plugin_human_chat_quality import signal_detectors
-from astrbot_plugin_human_chat_quality.runtime_state import (
+from astrbot_plugin_natural_chat.constants import MAX_AVOID_ITEMS
+from astrbot_plugin_natural_chat.runtime_state import (
     RuntimeStateStore,
-    SessionState,
-    _parse_group_id_from_origin,
-    _state_from_dict,
     extract_opener,
-    group_id_from_event,
     is_session_disabled,
     match_keys,
     repeated_items,
 )
-from astrbot_plugin_human_chat_quality.signal_detectors import detect_cliches
 
 
-class TestDetectClichesNaturalTalk(unittest.TestCase):
-    """natural-talk 信号：AI 自我暴露任意位置命中、开场仅首部命中、收尾仅结尾命中；
-    密度项（路标词/破折号/感叹号）对齐 natural-talk 计数口径：300 字基准按篇幅折算，超上限才报。"""
-
-    def test_ai_self_exposure_any_position(self):
-        self.assertIn("作为AI", detect_cliches("作为AI，我需要指出一点"))
-        self.assertIn("作为AI", detect_cliches("这里补充一点：作为AI我不能承诺。"))
-        self.assertIn("根据我的训练", detect_cliches("根据我的训练数据，这通常可行"))
-        self.assertIn("截至我的知识更新", detect_cliches("截至我的知识更新，该版本尚未发布"))
-
-    def test_opening_cliches_first_clause_only(self):
-        self.assertIn("好问题", detect_cliches("好问题，让我查一下"))
-        self.assertIn("让我来", detect_cliches("让我来帮你看看"))
-        self.assertIn("感谢你的提问", detect_cliches("感谢你的提问，我说明一下"))
-        # 句中不报
-        self.assertNotIn("好问题", detect_cliches("这个问题确实是个好问题"))
-        self.assertNotIn("让我来", detect_cliches("你先别急，让我来试试看再说"))
-
-    def test_opening_fp_control_human_phrases(self):
-        """误报控制：人话开场不受影响。"""
-        self.assertEqual(detect_cliches("感谢你的建议，我会试试"), [])
-        self.assertEqual(detect_cliches("感谢你的耐心，我先整理下"), [])
-        self.assertEqual(detect_cliches("好，我来确认一下再答复你"), [])
-
-    def test_english_high_confidence_signals(self):
-        self.assertIn("I hope this helps", detect_cliches("That is the answer. I hope this helps."))
-        self.assertIn("I hope this helps", detect_cliches("That is the answer. I HOPE THIS HELPS!"))
-        self.assertEqual(detect_cliches("I hope this helps you later in the paragraph."), [])
-        self.assertIn("Great question", detect_cliches("Great question, here is the short version."))
-        self.assertIn("Great question", detect_cliches("great question, here is the short version."))
-        self.assertNotIn("Great question", detect_cliches("this is a great question in the middle."))
-        self.assertEqual(detect_cliches("Of course I can look that up."), [])
-
-    def test_summary_endings_tail_only(self):
-        self.assertIn("综上所述", detect_cliches("情况就是这样，综上所述。"))
-        self.assertIn("由此可见", detect_cliches("测试全部通过，由此可见。"))
-        # 句中不报（“由此可见方案可行”是句中用法，按设计不拦截）
-        self.assertNotIn("由此可见", detect_cliches("测试全部通过，由此可见方案可行。"))
-        self.assertNotIn("综上所述", detect_cliches("综上所述的问题先放一边，我们看下一个"))
-
-    def test_road_signs_three_plus(self):
-        self.assertIn("路标词堆砌", detect_cliches("事实上这样。实际上那样。换句话说都不行。"))
-        self.assertNotIn("路标词堆砌", detect_cliches("事实上这样。实际上那样。"))
-        self.assertIn("路标词堆砌", detect_cliches("本质上如此。归根结底如此。与此同时还有。"))
-
-    def test_road_signs_single_use_clear(self):
-        self.assertEqual(detect_cliches("事实上这是个好办法"), [])
-
-    def test_starter_and_opening_signals_first_clause_only(self):
-        self.assertIn("说白了", detect_cliches("说白了，这个方案成本太高"))
-        self.assertIn("先说结论", detect_cliches("先说结论，测试全部通过"))
-        self.assertIn("你问到了核心", detect_cliches("你问到了核心，问题在这里"))
-        self.assertIn("在当今快速发展的时代", detect_cliches("在当今快速发展的时代，技术日新月异"))
-        self.assertIn("众所周知", detect_cliches("众所周知，缓存能降低延迟。"))
-        self.assertNotIn("众所周知", detect_cliches("这是一条众所周知的定理。"))
-        # 句中不报
-        self.assertNotIn("说白了", detect_cliches("他把事情说白了而已"))
-        self.assertNotIn("先说结论", detect_cliches("我们不能先说结论再找论据"))
-
-    def test_forced_balance_endings_tail_only(self):
-        self.assertIn("关键在于找到平衡", detect_cliches("具体如何选择，关键在于找到平衡。"))
-        self.assertIn("要结合实际情况", detect_cliches("具体方案要结合实际情况。"))
-        self.assertEqual(detect_cliches("要结合实际情况进行综合分析，然后再下定论。"), [])
-        # 上游整句万能收尾；句中构词仍不报
-        self.assertEqual(detect_cliches("视情况而定。"), ["视情况而定"])
-        self.assertEqual(detect_cliches("没有标准答案。"), ["没有标准答案"])
-        self.assertEqual(detect_cliches("看具体情况。"), ["看具体情况"])
-        self.assertEqual(detect_cliches("视情况而定的排班先不动。"), [])
-
-    def test_casual_invite_is_not_a_service_tail(self):
-        """随时问我不检测；随时联系我仍命中。"""
-        self.assertEqual(detect_cliches("今晚有空就来，随时问我。"), [])
-        self.assertEqual(detect_cliches("字段名以文档为准，随时问我。"), [])
-        self.assertIn("随时联系我", detect_cliches("补丁合上就能跑，随时联系我。"))
-
-    def test_colon_prompt_abuse(self):
-        self.assertIn("空转提示语", detect_cliches("一句话总结：这个方案不可行。"))
-        self.assertIn("空转提示语", detect_cliches("核心是：提高代码质量。"))
-
-    def test_vague_attribution_and_b1_variants(self):
-        self.assertIn("专家指出", detect_cliches("专家指出缓存能降低延迟。"))
-        self.assertIn("不少用户反馈", detect_cliches("不少用户反馈升级后更稳。"))
-        self.assertIn("翻案腔", detect_cliches("其实不是权限问题，只是路径配错了。"))
-        self.assertIn("结尾拔高", detect_cliches("这不仅是优化，更是对工程的追求。"))
-        self.assertNotIn("结尾拔高", detect_cliches("不仅能编译还能热更新。"))
-        self.assertNotIn("翻案腔", detect_cliches("其实我只是想确认一下。"))
+class StoreCase(unittest.IsolatedAsyncioTestCase):
+    def make_store(self, **kwargs: object) -> RuntimeStateStore:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        options: dict[str, object] = {"retention_days": 14, "recent_reply_window": 8}
+        options.update(kwargs)
+        return RuntimeStateStore(Path(temp_dir.name) / "state.json", **options)  # type: ignore[arg-type]
 
 
-class TestDetectClichesLegacy(unittest.TestCase):
-    """回归：既有高置信度信号不受扩充影响。"""
+class RecordResponseTest(StoreCase):
+    async def test_signals_enter_the_avoid_list(self) -> None:
+        store = self.make_store()
+        added = await store.record_response("s1", "然而连发。然而又是。", ("然而连发",))
+        self.assertEqual(added, 1)
+        self.assertEqual(store.get("s1").avoid_openers, ["然而连发"])
 
-    def test_ending_hit_tail_only(self):
-        self.assertIn("希望对你有帮助", detect_cliches("这是正文，希望对你有帮助。"))
-        self.assertEqual(detect_cliches("希望对你有帮助，然后我们继续。"), [])
+    async def test_blank_text_records_nothing(self) -> None:
+        store = self.make_store()
+        self.assertEqual(await store.record_response("s1", "   "), 0)
+        self.assertEqual(store.get("s1").avoid_openers, [])
 
-    def test_structure_consecutive(self):
-        self.assertIn("破折号", detect_cliches("a——b——c"))
-        self.assertEqual(detect_cliches("a——b"), [])
-        self.assertIn("然而连发", detect_cliches("然而a然而b"))
-        self.assertEqual(detect_cliches("然而一次"), [])
+    async def test_avoid_list_is_capped_and_deduplicated(self) -> None:
+        store = self.make_store()
+        names = [f"信号{i}" for i in range(MAX_AVOID_ITEMS + 4)]
+        await store.record_response("s1", "正文", tuple(names))
+        self.assertEqual(len(store.get("s1").avoid_openers), MAX_AVOID_ITEMS)
+        await store.record_response("s1", "正文", (names[0],))
+        self.assertEqual(store.get("s1").avoid_openers.count(names[0]), 1)
 
-    def test_dash_density_aligned_with_skill(self):
-        """对齐 natural-talk：em/en dash 均计次，上限 ≤2，超过（≥3 个）才报。"""
-        self.assertIn("破折号", detect_cliches("a—b—c—d"))  # 三个单 em dash
-        self.assertIn("破折号", detect_cliches("a–b–c–d"))  # 三个 en dash
-        self.assertIn("破折号", detect_cliches("a——b—c"))  # 混合计次（4 个）
-        self.assertEqual(detect_cliches("a—b"), [])  # 恰好在上限内
-        self.assertEqual(detect_cliches("a–b"), [])
+    async def test_overlong_signal_is_dropped(self) -> None:
+        store = self.make_store()
+        await store.record_response("s1", "正文", ("长" * 40,))
+        self.assertEqual(store.get("s1").avoid_openers, [])
 
-    def test_exclamation_density_aligned_with_skill(self):
-        """对齐 natural-talk：感叹号上限 ≤3，超过（≥4 个）才报；全/半角都算。"""
-        self.assertIn("感叹号", detect_cliches("太好了！太棒了！真厉害！冲啊！"))
-        self.assertIn("感叹号", detect_cliches("Nice! Great! Amazing! Wow!"))
-        self.assertEqual(detect_cliches("不错！很好！加油！"), [])
-        self.assertEqual(detect_cliches("好!行!可以!"), [])
-
-    def test_density_caps_scale_with_length(self):
-        """对齐 natural-talk：更长回复按 300 字基准折算上限。
-
-        650 字左右为 scale=3 档：路标词上限 6 次，破折号上限 6 个；
-        700+ 字为 scale=3 档同样成立，用 6 个不报、7 个报验证折算生效。
-        """
-        base = "字" * 620
-        six = base + "事实上" * 6
-        seven = base + "事实上" * 7
-        self.assertEqual(detect_cliches(six), [])
-        self.assertIn("路标词堆砌", detect_cliches(seven))
-        self.assertEqual(detect_cliches(base + "a—" * 6), [])
-        self.assertIn("破折号", detect_cliches(base + "a—" * 7))
-        self.assertEqual(detect_cliches(base + "！" * 9), [])
-        self.assertIn("感叹号", detect_cliches(base + "！" * 10))
-
-    def test_custom_cliches_any_position(self):
-        self.assertEqual(detect_cliches("中间出现自定义词", ("自定义词",)), ["自定义词"])
-        # 去重、保序
-        hits = detect_cliches("好问题。自定义词。事实上。事实上。事实上。", ("自定义词",))
-        self.assertEqual(hits[0], "好问题")
-        self.assertIn("自定义词", hits)
-        self.assertIn("路标词堆砌", hits)
-
-    def test_quoted_iron_rule_does_not_hide_later_unquoted_match(self):
-        text = "他说：\u201c这不是优化而是重构。\u201d但真正的问题是测试不足。"
-        self.assertIn("翻案腔", detect_cliches(text))
-
-    def test_quoted_dialogue_still_hits_iron_rule(self):
-        self.assertIn("翻案腔", detect_cliches("角色说：「这不是优化而是重构。」"))
-        self.assertIn("翻案腔", detect_cliches("角色说：“这不是优化而是重构。”这属于台词内容。"))
-
-    def test_iron_rule_examples_in_code_are_ignored(self):
-        text = "示例：`不是优化而是重构`。代码如下：\n```text\n真正的问题是这里\n```"
-        self.assertNotIn("翻案腔", detect_cliches(text))
-
-    def test_iron_rule_variants_hit_and_inventory_sentence_does_not(self):
-        self.assertIn("翻案腔", detect_cliches("这不是妥协，只是算账。"))
-        self.assertIn("翻案腔", detect_cliches("不在于技术，而在于排班。"))
-        self.assertIn("翻案腔", detect_cliches("表面上看是优化，实则是重构。"))
-        self.assertIn("翻案腔", detect_cliches("不是优化——是重构。"))
-        self.assertEqual(detect_cliches("冰箱里没有可乐，只有啤酒。"), [])
-        self.assertNotIn("翻案腔", detect_cliches("代码：`不是优化，只是重构`。"))
-
-    def test_tilde_fence_and_url_are_masked(self):
-        self.assertEqual(detect_cliches("见 https://example.com/作为AI 再看正文。"), [])
-        self.assertNotIn("作为AI", detect_cliches("代码：\n~~~\n作为AI不能这样\n~~~\n以上。"))
-
-    def test_numbered_headings_need_three_same_level(self):
-        three = "# 一、准备\n# 二、实施\n# 三、验收\n"
-        self.assertIn("编号小标题连发", detect_cliches(three))
-        self.assertEqual(detect_cliches("# 一、准备\n# 二、实施\n"), [])
-        interrupted = "# 一、准备\n# 普通标题\n# 二、实施\n# 三、验收\n"
-        self.assertNotIn("编号小标题连发", detect_cliches(interrupted))
-        with_body = "# 一、准备\n先说明范围。\n# 二、实施\n再写步骤。\n# 三、验收\n"
-        self.assertIn("编号小标题连发", detect_cliches(with_body))
-        self.assertEqual(detect_cliches("# 准备\n# 实施\n# 验收\n"), [])
-        self.assertIn(
-            "编号小标题连发",
-            detect_cliches("**一、准备**\n**二、实施**\n**三、验收**\n"),
-        )
-
-    def test_mismatched_quotes_do_not_create_an_exemption(self):
-        self.assertIn("翻案腔", detect_cliches('\u201c前文这不是优化而是重构"后文'))
-
-    def test_density_uses_normalized_text_length(self):
-        """密度折算用归一化后字符数，原始空白不计入篇幅档位。
-
-        样本 3 个破折号：归一 5 字→档 1→阈 2→报；原始 305 字→档 2→阈 4→不报，
-        两种口径输出分叉，能抓"误用原始长度"的实现。
-        """
-        text = "破" + " " * 300 + "折" + "—" * 3
-        self.assertIn("破折号", detect_cliches(text))
-
-    def test_density_uses_shared_constant(self):
-        with mock.patch.object(signal_detectors, "DENSITY_BASE", 600, create=True):
-            self.assertIn("感叹号", signal_detectors.detect_density_signals("字" * 301 + "！" * 4))
-
-    def test_fixed_pattern_uses_shared_constant(self):
-        with mock.patch.object(signal_detectors, "CONSECUTIVE_THRESHOLD", 3, create=True):
-            self.assertNotIn("然而连发", signal_detectors.detect_fixed_pattern_signals("然而。然而。"))
-            self.assertIn("然而连发", signal_detectors.detect_fixed_pattern_signals("然而。然而。然而。"))
+    async def test_repeated_opener_enters_after_threshold(self) -> None:
+        store = self.make_store()
+        for _ in range(3):
+            await store.record_response("s1", "好的，这就办。")
+        self.assertIn("好的", store.get("s1").avoid_openers)
 
 
-class TestOpener(unittest.TestCase):
-    def test_prefix(self):
-        self.assertEqual(extract_opener("好的，我来帮你"), "好的")
+class EnableStateTest(StoreCase):
+    async def test_toggle_round_trip(self) -> None:
+        store = self.make_store()
+        self.assertTrue(store.is_enabled("s1"))
+        await store.set_enabled("s1", False)
+        self.assertFalse(store.is_enabled("s1"))
+        await store.set_enabled("s1", True)
+        self.assertTrue(store.is_enabled("s1"))
 
-    def test_split_and_truncate(self):
-        self.assertEqual(extract_opener("今天天气真不错，适合出门"), "今天天气真不错")
-
-    def test_single_char_skipped_and_empty(self):
-        self.assertEqual(extract_opener("嗯。好的吧"), "")
-        self.assertEqual(extract_opener(""), "")
-
-    def test_prefix_hit_returns_prefix_truncated(self):
-        self.assertEqual(extract_opener("没问题，这是一段话"), "没问题")
-
-    def test_prefix_miss_falls_back_to_delim_split(self):
-        self.assertEqual(extract_opener("嗯好的"), "嗯好的")
-
-    def test_two_char_kept_after_split(self):
-        self.assertEqual(extract_opener("好的"), "好的")
+    async def test_reset_clears_records(self) -> None:
+        store = self.make_store()
+        await store.record_response("s1", "然而连发。然而又是。", ("然而连发",))
+        await store.reset("s1")
+        self.assertEqual(store.get("s1").avoid_openers, [])
 
 
-class TestRepeatedItems(unittest.TestCase):
-    def test_threshold_and_order(self):
-        self.assertEqual(repeated_items(["好的", "好的", "好的", "好的"], 5), ["好的"])
-        self.assertEqual(repeated_items(["a", "b", "a", "b", "a", "b"], 5), ["a", "b"])
-        self.assertEqual(repeated_items(["a", "a"], 5), [])
+class PersistenceTest(StoreCase):
+    async def test_state_survives_restart(self) -> None:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / "state.json"
+        first = RuntimeStateStore(path, retention_days=14, recent_reply_window=8)
+        await first.record_response("s1", "然而连发。", ("然而连发",))
+        await first.set_enabled("s2", False)
+        await first.terminate()
 
+        second = RuntimeStateStore(path, retention_days=14, recent_reply_window=8)
+        self.assertEqual(second.get("s1").avoid_openers, ["然而连发"])
+        self.assertFalse(second.is_enabled("s2"))
 
-class TestStore(unittest.TestCase):
-    def setUp(self):
-        self.dir = temporary_directory(self)
+    async def test_corrupt_file_is_backed_up_and_reset(self) -> None:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / "state.json"
+        path.write_text("{not json", encoding="utf-8")
+        store = RuntimeStateStore(path, retention_days=14, recent_reply_window=8)
+        self.assertEqual(store.sessions, {})
+        self.assertTrue(list(path.parent.glob("state.corrupt.*.json")))
 
-    def _path(self, name="state.json"):
-        return os.path.join(self.dir, name)
-
-    def test_custom_cliches_dedup_and_filter(self):
-        s = RuntimeStateStore(self._path(), 14, 8, ["自定义词", "自定义词", "x" * 21])
-        self.assertEqual(s.custom_cliches, ("自定义词",))
-
-    def test_custom_cliches_report_ignored_reasons_without_values(self):
-        s = RuntimeStateStore(self._path(), 14, 8, ["", "自定义词", "自定义词", "x" * 21])
-        self.assertEqual(s.custom_cliches_ignored, 3)
-        self.assertEqual(dict(s.custom_cliches_ignored_reasons), {"empty": 1, "duplicate": 1, "too_long": 1})
-
-    def test_persistence_status_interface_exists(self):
-        s = RuntimeStateStore(self._path(), 14, 8)
-        self.assertTrue(callable(getattr(s, "flush", None)))
-        self.assertIs(getattr(s, "has_pending_save", None), False)
-
-    def test_record_and_roundtrip(self):
-        async def run():
-            s = RuntimeStateStore(self._path(), 14, 8, ("自定义词",))
-            await s.record_response("g1", "好的，回答一", ())
-            await s.record_response(
-                "g1", "好的，回答二（自定义词）", detect_cliches("好的，回答二（自定义词）", ("自定义词",))
-            )
-            st = s.get("g1")
-            # 信号只带进下一轮提示（avoid_openers 每轮重算，README 契约）
-            self.assertIn("自定义词", st.avoid_openers)
-            self.assertLessEqual(len(st.avoid_openers), 5)
-            # 持久化往返
-            self.assertTrue(await s.flush())
-            s2 = RuntimeStateStore(self._path(), 14, 8)
-            self.assertIn("自定义词", s2.get("g1").avoid_openers)
-            # 重复开头达阈值进入清单
-            await s.record_response("g1", "好的，回答三", ())
-            self.assertIn("好的", s.get("g1").avoid_openers)
-
-        import asyncio
-
-        asyncio.run(run())
-
-    def test_record_response_returns_new_avoid_count(self):
-        """契约：返回本轮新增避用项数；同词重复命中不重复计数；空文本返回 0。"""
-
-        async def run():
-            s = RuntimeStateStore(self._path("cnt.json"), 14, 8, ("自定义词",))
-            self.assertEqual(await s.record_response("g", "回复带自定义词", ("自定义词",)), 1)
-            self.assertEqual(await s.record_response("g", "又是自定义词", ("自定义词",)), 0)
-            self.assertEqual(await s.record_response("g", ""), 0)
-
-        import asyncio
-
-        asyncio.run(run())
-
-    def test_corrupt_top_level_backup_and_reset(self):
-        with open(self._path(), "w", encoding="utf-8") as f:
-            f.write("{broken json")
-        s = RuntimeStateStore(self._path(), 14, 8)
-        self.assertEqual(s.sessions, {})
-        self.assertTrue(any("corrupt" in fn for fn in os.listdir(self.dir)))
-
-    def test_valid_json_non_dict_root_backup_and_reset(self):
-        """合法 JSON 但根非对象（list/str/int）→ 备份+全清，构造不抛异常。"""
-        for index, bad in enumerate(("[]", "[1, 2]", '"x"', "123")):
-            with self.subTest(bad=bad):
-                p = self._path(f"root-{index}.json")
-                with open(p, "w", encoding="utf-8") as f:
-                    f.write(bad)
-                s = RuntimeStateStore(p, 14, 8)
-                self.assertEqual(s.sessions, {})
-                self.assertEqual(s.runtime_disabled, set())
-                self.assertTrue(any(".corrupt." in fn for fn in os.listdir(self.dir)))
-
-    def test_entry_level_tolerant(self):
-        p = self._path("s2.json")
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump({"sessions": {"good": {"a": ["a"], "r": "a"}, "bad": "notdict"}}, f)
-        s = RuntimeStateStore(p, 14, 8)
-        self.assertIn("good", s.sessions)
-        self.assertNotIn("bad", s.sessions)
-
-    def test_retired_v1_entry_is_skipped_with_backup(self):
-        p = self._path("legacy-v1.json")
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump({"sessions": {"old": {"avoid_openers": ["好的"], "recent_openers": ["好的"]}}}, f)
-        s = RuntimeStateStore(p, 14, 8)
-        self.assertNotIn("old", s.sessions)
-        self.assertEqual(len(list(Path(self.dir).glob("legacy-v1.corrupt.*.json"))), 1)
-
-    def test_compact_invalid_entries_do_not_reset_valid_sessions(self):
-        p = self._path("compact-invalid.json")
+    async def test_bad_session_entry_is_skipped_others_survive(self) -> None:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / "state.json"
         now = int(time.time())
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "sessions": {
-                        "good": {"a": ["好的"], "r": "好的", "t": now},
-                        "bad-r": {"a": [], "r": [], "t": now},
-                        "bad-t": {"a": [], "r": "好的", "t": "not-a-number"},
-                    }
-                },
-                f,
-            )
+        path.write_text(
+            json.dumps({"sessions": {"good": {"a": ["好的"], "r": "", "t": now}, "bad": "not-a-dict"}}),
+            encoding="utf-8",
+        )
+        store = RuntimeStateStore(path, retention_days=14, recent_reply_window=8)
+        self.assertIn("good", store.sessions)
+        self.assertNotIn("bad", store.sessions)
 
-        s = RuntimeStateStore(p, 14, 8)
+    async def test_non_finite_timestamp_is_ignored(self) -> None:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / "state.json"
+        path.write_text(json.dumps({"sessions": {"s1": {"a": [], "r": "", "t": "nan"}}}), encoding="utf-8")
+        store = RuntimeStateStore(path, retention_days=1, recent_reply_window=8)
+        # 时间戳不可解析时回落到文件 mtime，否则整条会话会被当成过期清掉
+        self.assertIsNotNone(store.get("s1").updated_at)
 
-        self.assertEqual(s.get("good").avoid_openers, ["好的"])
-        self.assertNotIn("bad-r", s.sessions)
-        self.assertNotIn("bad-t", s.sessions)
-        self.assertEqual(len(list(Path(self.dir).glob("compact-invalid.corrupt.*.json"))), 1)
-
-        async def persist_new_session():
-            # 新会话首轮无新增避用项（开头未达重复阈值、无命中信号）→ 返回 0
-            self.assertEqual(await s.record_response("new", "可以，继续处理。", ()), 0)
-            self.assertTrue(await s.flush())
-
-        asyncio.run(persist_new_session())
-        with open(p, encoding="utf-8") as f:
-            saved = json.load(f)
-        self.assertEqual(set(saved["sessions"]), {"good", "new"})
-
-    def test_multiple_malformed_sections_create_one_backup(self):
-        p = self._path("multiple-malformed.json")
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump({"disabled_sessions": "not-a-list", "sessions": {"bad": "not-a-session"}}, f)
-
-        s = RuntimeStateStore(p, 14, 8)
-
-        self.assertEqual(s.runtime_disabled, set())
-        self.assertEqual(s.sessions, {})
-        self.assertEqual(len(list(Path(self.dir).glob("multiple-malformed.corrupt.*.json"))), 1)
-
-    def test_runtime_disabled_persisted(self):
-        async def run():
-            p = self._path("s3.json")
-            s = RuntimeStateStore(p, 14, 8)
-            await s.set_enabled("g1", False)
-            await s.set_enabled("g1", False)  # 幂等：不报错
-            self.assertFalse(s.is_enabled("g1"))
-            s2 = RuntimeStateStore(p, 14, 8)
-            self.assertFalse(s2.is_enabled("g1"))
-
-        import asyncio
-
-        asyncio.run(run())
-
-
-class TestWindowThresholdBoundaries(unittest.TestCase):
-    """窗口与重复阈值的边界行为。"""
-
-    def setUp(self):
-        self.dir = temporary_directory(self)
-
-    def test_window_three_exact_hit(self):
-        async def run():
-            s = RuntimeStateStore(os.path.join(self.dir, "w3.json"), 14, 3, ())
-            for _ in range(3):
-                await s.record_response("g", "好的，回答", ())
-            self.assertIn("好的", s.get("g").avoid_openers)
-
-        asyncio.run(run())
-
-    def test_two_repeats_not_hit(self):
-        async def run():
-            s = RuntimeStateStore(os.path.join(self.dir, "w8.json"), 14, 8, ())
-            for _ in range(2):
-                await s.record_response("g", "好的，回答", ())
-            self.assertEqual(s.get("g").avoid_openers, [])
-
-        asyncio.run(run())
-
-    def test_repeat_order_is_first_reach_order(self):
-        async def run():
-            s = RuntimeStateStore(os.path.join(self.dir, "ord.json"), 14, 8, ())
-            # 两种开头交替出现；avoid_openers 按窗口扫描序（最近→最旧）取先达 3 次者
-            for opener in ["好的", "可以", "好的", "可以", "好的", "可以"]:
-                await s.record_response("g", opener + "，回答", ())
-            self.assertEqual(s.get("g").avoid_openers, ["可以", "好的"])
-
-        asyncio.run(run())
-
-
-class TestReset(unittest.TestCase):
-    """reset 清空目标会话并持久化，不影响其它会话。"""
-
-    def setUp(self):
-        self.dir = temporary_directory(self)
-
-    def test_reset_clears_target_session_only(self):
-        async def run():
-            p = os.path.join(self.dir, "rst.json")
-            s = RuntimeStateStore(p, 14, 8, ())
-            await s.record_response("g1", "好的，回答", ())
-            await s.record_response("g2", "可以，回答", ())
-            await s.reset("g1")
-            self.assertNotIn("g1", s.sessions)
-            self.assertIn("g2", s.sessions)
-            s2 = RuntimeStateStore(p, 14, 8)
-            self.assertNotIn("g1", s2.sessions)
-            self.assertIn("g2", s2.sessions)
-
-        asyncio.run(run())
-
-
-class TestPruneExpired(unittest.TestCase):
-    """过期会话按 retention 清理（时间轴经 _now 注入）。"""
-
-    def setUp(self):
-        self.dir = temporary_directory(self)
-
-    def test_expired_removed(self):
-        async def run():
-            s = RuntimeStateStore(os.path.join(self.dir, "pr.json"), 7, 8, ())
-            await s.record_response("old", "好的，回答", ())
-            with mock.patch(
-                "astrbot_plugin_human_chat_quality.runtime_state._now",
-                return_value=time.time() + 8 * 86400,
-            ):
-                s._prune_expired()
-            self.assertEqual(s.sessions, {})
-
-        asyncio.run(run())
-
-    def test_fresh_within_retention_kept(self):
-        async def run():
-            s = RuntimeStateStore(os.path.join(self.dir, "pr2.json"), 7, 8, ())
-            await s.record_response("fresh", "好的，回答", ())
-            s._prune_expired()
-            self.assertIn("fresh", s.sessions)
-
-        asyncio.run(run())
-
-    def test_session_without_timestamps_uses_stale_file_mtime(self):
-        path = os.path.join(self.dir, "legacy-stale.json")
-        with open(path, "w", encoding="utf-8") as file:
-            json.dump({"sessions": {"old": {"a": ["好的"], "r": "好的"}}}, file)
-        now = 2_000_000.0
-        old_mtime = now - 8 * 86400
-        os.utime(path, (old_mtime, old_mtime))
-
-        with mock.patch("astrbot_plugin_human_chat_quality.runtime_state._now", return_value=now):
-            store = RuntimeStateStore(path, 7, 8)
-
+    async def test_expired_session_is_pruned(self) -> None:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / "state.json"
+        path.write_text(json.dumps({"sessions": {"old": {"a": ["好的"], "r": "", "t": 1}}}), encoding="utf-8")
+        store = RuntimeStateStore(path, retention_days=1, recent_reply_window=8)
         self.assertNotIn("old", store.sessions)
 
-    def test_session_without_timestamps_persists_fresh_file_mtime(self):
-        async def run():
-            path = os.path.join(self.dir, "legacy-fresh.json")
-            with open(path, "w", encoding="utf-8") as file:
-                json.dump({"sessions": {"fresh": {"a": ["好的"], "r": "好的"}}}, file)
-            now = 2_000_000.0
-            fresh_mtime = now - 86400
-            os.utime(path, (fresh_mtime, fresh_mtime))
-
-            with mock.patch("astrbot_plugin_human_chat_quality.runtime_state._now", return_value=now):
-                store = RuntimeStateStore(path, 7, 8)
-                self.assertEqual(store.get("fresh").updated_at, fresh_mtime)
-                self.assertTrue(await store.set_enabled("disabled", False))
-            with open(path, encoding="utf-8") as file:
-                saved = json.load(file)
-            # 新格式使用 "t" 字段（紧凑格式）
-            self.assertEqual(saved["sessions"]["fresh"]["t"], int(fresh_mtime))
-
-        asyncio.run(run())
-
-    def test_prune_uses_one_now_for_all_missing_timestamps(self):
-        store = RuntimeStateStore(os.path.join(self.dir, "single-now.json"), 1, 8, ())
-        store.sessions = {"a": SessionState(), "b": SessionState()}
-
-        with mock.patch(
-            "astrbot_plugin_human_chat_quality.runtime_state._now",
-            side_effect=[200_000.0, 200_000.0, 0.0],
-        ) as current_time:
-            store._prune_expired()
-
-        self.assertEqual(set(store.sessions), {"a", "b"})
-        current_time.assert_called_once_with()
-
-    def test_zero_timestamp_is_not_treated_as_missing(self):
-        store = RuntimeStateStore(os.path.join(self.dir, "zero-time.json"), 1, 8, ())
-        store.sessions = {"old": SessionState(updated_at=0.0)}
-
-        with mock.patch("astrbot_plugin_human_chat_quality.runtime_state._now", return_value=200_000.0):
-            store._prune_expired()
-
-        self.assertEqual(store.sessions, {})
-
-
-class TestBackupRotation(unittest.TestCase):
-    """损坏备份按 mtime 轮转，只保留最近 5 份。"""
-
-    def setUp(self):
-        self.dir = temporary_directory(self)
-
-    def test_backup_capped_at_five(self):
-        p = os.path.join(self.dir, "rot.json")
-        for i in range(6):
-            bp = os.path.join(self.dir, f"rot.corrupt.2026010{i + 1}-000000-{1000 + i}.json")
-            with open(bp, "w", encoding="utf-8") as f:
-                f.write("x")
-            os.utime(bp, (1000 + i, 1000 + i))
-        with open(p, "w", encoding="utf-8") as f:
-            f.write("{broken json")
-        RuntimeStateStore(p, 14, 8)
-        backups = [n for n in os.listdir(self.dir) if "rot.corrupt" in n]
-        self.assertEqual(len(backups), 5)
-        # 淘汰最旧、保留最新：只断言数量时，实现误写为 backups[5:]（保留最早 5 份）仍会绿
-        self.assertNotIn("rot.corrupt.20260101-000000-1000.json", backups, "最旧备份应被淘汰")
-        self.assertIn("rot.corrupt.20260106-000000-1005.json", backups, "最新备份应保留")
-
-
-class TestSaveFailureIsolation(unittest.TestCase):
-    """Write failures stay visible and retryable without rolling back memory."""
-
-    def setUp(self):
-        self.dir = temporary_directory(self)
-
-    def test_background_failure_keeps_dirty_and_next_change_retries(self):
-        async def run():
-            path = os.path.join(self.dir, "sf.json")
-            s = RuntimeStateStore(path, 14, 8, ())
-            real_write = s._write_snapshot_sync
-            with (
-                mock.patch.object(runtime_state_module, "STATE_SAVE_DEBOUNCE_SECONDS", 0, create=True),
-                mock.patch.object(s, "_write_snapshot_sync", side_effect=OSError("disk full")),
-            ):
-                await s.record_response("g", "好的，回答", ())
-                save_task = getattr(s, "_save_task", None)
-                self.assertIsNotNone(save_task)
-                await save_task
-            self.assertIn("g", s.sessions)
-            self.assertTrue(s.has_pending_save)
-            with (
-                mock.patch.object(runtime_state_module, "STATE_SAVE_DEBOUNCE_SECONDS", 0, create=True),
-                mock.patch.object(s, "_write_snapshot_sync", side_effect=real_write),
-            ):
-                await s.record_response("g", "可以，继续", ())
-                save_task = getattr(s, "_save_task", None)
-                self.assertIsNotNone(save_task)
-                await save_task
-            self.assertFalse(s.has_pending_save)
-            self.assertIn("g", RuntimeStateStore(path, 14, 8).sessions)
-
-        asyncio.run(run())
-
-    def test_write_snapshot_windows_transient_retry(self):
-        calls = 0
-        orig_replace = os.replace
-
-        def mock_replace(src, dst):
-            nonlocal calls
-            calls += 1
-            if calls == 1:
-                raise PermissionError(13, "Access is denied (mock transient lock)")
-            return orig_replace(src, dst)
-
-        with mock.patch("os.replace", side_effect=mock_replace):
-            path = os.path.join(self.dir, "retry_state.json")
-            store = RuntimeStateStore(path, 14, 8, ())
-            payload = {"sessions": {}, "disabled_sessions": []}
-            store._write_snapshot_sync(payload)
-            # 瞬时锁必须被重试覆盖；只断言"至少重试一次"，使重试预算可调而不锁死实现
-            self.assertGreaterEqual(calls, 2, "瞬时锁未触发重试")
-            self.assertTrue(os.path.exists(path))
-
-    def test_same_set_enabled_retries_after_failure(self):
-        async def run():
-            path = os.path.join(self.dir, "toggle.json")
-            s = RuntimeStateStore(path, 14, 8, ())
-            real_write = s._write_snapshot_sync
-            attempts = 0
-
-            def fail_once(payload):
-                nonlocal attempts
-                attempts += 1
-                if attempts == 1:
-                    raise OSError("disk full")
-                real_write(payload)
-
-            with mock.patch.object(s, "_write_snapshot_sync", side_effect=fail_once):
-                self.assertFalse(await s.set_enabled("g", False))
-                self.assertFalse(s.is_enabled("g"))
-                self.assertTrue(s.has_pending_save)
-                self.assertTrue(await s.set_enabled("g", False))
-            self.assertEqual(attempts, 2)
-            self.assertFalse(s.has_pending_save)
-            self.assertFalse(RuntimeStateStore(path, 14, 8).is_enabled("g"))
-
-        asyncio.run(run())
-
-    def test_same_reset_retries_pending_save(self):
-        async def run():
-            path = os.path.join(self.dir, "reset-retry.json")
-            s = RuntimeStateStore(path, 14, 8, ())
-            await s.record_response("g", "好的，回答", ())
-            real_write = s._write_snapshot_sync
-            attempts = 0
-
-            def fail_once(payload):
-                nonlocal attempts
-                attempts += 1
-                if attempts == 1:
-                    raise OSError("disk full")
-                real_write(payload)
-
-            with mock.patch.object(s, "_write_snapshot_sync", side_effect=fail_once):
-                self.assertFalse(await s.reset("g"))
-                self.assertNotIn("g", s.sessions)
-                self.assertTrue(await s.reset("g"))
-            self.assertEqual(attempts, 2)
-            self.assertNotIn("g", RuntimeStateStore(path, 14, 8).sessions)
-
-        asyncio.run(run())
-
-
-class TestConcurrentPersistence(unittest.TestCase):
-    def setUp(self):
-        self.dir = temporary_directory(self)
-
-    def test_record_response_returns_before_slow_write_finishes(self):
-        async def run():
-            s = RuntimeStateStore(os.path.join(self.dir, "slow.json"), 14, 8, ())
-            started = threading.Event()
-            release = threading.Event()
-            real_write = s._write_snapshot_sync
-
-            def slow_write(payload):
-                started.set()
-                release.wait(timeout=5)
-                real_write(payload)
-
-            with (
-                mock.patch.object(runtime_state_module, "STATE_SAVE_DEBOUNCE_SECONDS", 0, create=True),
-                mock.patch.object(s, "_write_snapshot_sync", side_effect=slow_write),
-            ):
-                record_task = asyncio.create_task(s.record_response("g", "好的，回答", ()))
-                self.assertTrue(await asyncio.to_thread(started.wait, 5))
-                try:
-                    self.assertTrue(record_task.done())
-                    self.assertFalse(s._state_lock.locked())
-                    self.assertEqual(s.get("g").recent_openers, ["好的"])
-                finally:
-                    release.set()
-                    await record_task
-                save_task = getattr(s, "_save_task", None)
-                self.assertIsNotNone(save_task)
-                await save_task
-
-        asyncio.run(run())
-
-    def test_concurrent_records_persist_latest_combined_state(self):
-        async def run():
-            path = os.path.join(self.dir, "concurrent.json")
-            s = RuntimeStateStore(path, 14, 8, ())
-            first_started = threading.Event()
-            release_first = threading.Event()
-            real_write = s._write_snapshot_sync
-            writes = 0
-            snapshots = []
-
-            def controlled_write(payload):
-                nonlocal writes
-                writes += 1
-                snapshots.append(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-                if writes == 1:
-                    first_started.set()
-                    release_first.wait(timeout=5)
-                real_write(payload)
-
-            with (
-                mock.patch.object(runtime_state_module, "STATE_SAVE_DEBOUNCE_SECONDS", 0, create=True),
-                mock.patch.object(s, "_write_snapshot_sync", side_effect=controlled_write),
-            ):
-                first_record = asyncio.create_task(s.record_response("g", "好的，回答一", ()))
-                self.assertTrue(await asyncio.to_thread(first_started.wait, 5))
-                try:
-                    self.assertTrue(first_record.done())
-                    save_task = getattr(s, "_save_task", None)
-                    self.assertIsNotNone(save_task)
-                    await s.record_response("g", "可以，回答二", ())
-                finally:
-                    release_first.set()
-                    await first_record
-                await save_task
-
-            persisted = RuntimeStateStore(path, 14, 8).get("g")
-            self.assertEqual(persisted.recent_openers, ["可以", "好的"])
-            self.assertFalse(s.has_pending_save)
-            self.assertEqual(len(snapshots), len(set(snapshots)))
-
-        asyncio.run(run())
-
-    def test_burst_updates_coalesce_to_one_write(self):
-        async def run():
-            path = os.path.join(self.dir, "burst.json")
-            store = RuntimeStateStore(path, 14, 100, ())
-            real_write = store._write_snapshot_sync
-            writes = 0
-
-            def count_write(payload):
-                nonlocal writes
-                writes += 1
-                real_write(payload)
-
-            # 防抖窗拉长到远超突发时长：无论循环中是否让出事件循环，
-            # 窗内全部更新都必须合并为一次写盘（不再依赖"循环内不让出"的时序巧合）
-            with (
-                mock.patch.object(runtime_state_module, "STATE_SAVE_DEBOUNCE_SECONDS", 3600, create=True),
-                mock.patch.object(store, "_write_snapshot_sync", side_effect=count_write),
-            ):
-                for index in range(100):
-                    await store.record_response("g", f"第{index}次回答", ())
-                self.assertTrue(store.has_pending_save)
-                self.assertTrue(await store.terminate())
-
-            self.assertEqual(writes, 1)
-            self.assertFalse(store.has_pending_save)
-            persisted = RuntimeStateStore(path, 14, 100).get("g")
-            self.assertEqual(persisted.recent_openers[0], "第99次回答")
-
-        asyncio.run(run())
-
-    def test_terminate_flushes_pending_debounce(self):
-        async def run():
-            path = os.path.join(self.dir, "terminate.json")
-            store = RuntimeStateStore(path, 14, 8, ())
-            with mock.patch.object(runtime_state_module, "STATE_SAVE_DEBOUNCE_SECONDS", 3600, create=True):
-                await store.record_response("g", "好的，回答", ())
-                self.assertTrue(store.has_pending_save)
-                self.assertTrue(await store.terminate())
-
-            self.assertFalse(store.has_pending_save)
-            self.assertIn("g", RuntimeStateStore(path, 14, 8).sessions)
-
-        asyncio.run(run())
-
-    def test_concurrent_flushes_write_dirty_generation_once(self):
-        async def run():
-            path = os.path.join(self.dir, "same-generation.json")
-            store = RuntimeStateStore(path, 14, 8, ())
-            with mock.patch.object(store, "_write_snapshot_sync", side_effect=OSError("disk full")):
-                self.assertFalse(await store.set_enabled("g", False))
-
-            started = threading.Event()
-            release = threading.Event()
-            real_write = store._write_snapshot_sync
-            writes = 0
-
-            def slow_write(payload):
-                nonlocal writes
-                writes += 1
-                started.set()
-                release.wait(timeout=5)
-                real_write(payload)
-
-            with mock.patch.object(store, "_write_snapshot_sync", side_effect=slow_write):
-                first = asyncio.create_task(store.flush())
-                self.assertTrue(await asyncio.to_thread(started.wait, 5))
-                second = asyncio.create_task(store.flush())
-                release.set()
-                self.assertEqual(await asyncio.gather(first, second), [True, True])
-
-            self.assertEqual(writes, 1)
-
-        asyncio.run(run())
-
-
-class TestThreadedSave(unittest.TestCase):
-    """状态写盘经 asyncio.to_thread 在工作线程执行。"""
-
-    def setUp(self):
-        self.dir = temporary_directory(self)
-
-    def test_save_runs_in_thread_pool(self):
-        async def run():
-            s = RuntimeStateStore(os.path.join(self.dir, "th.json"), 14, 8, ())
-            real = asyncio.to_thread
-            with mock.patch(
-                "astrbot_plugin_human_chat_quality.runtime_state.asyncio.to_thread",
-                new=mock.AsyncMock(wraps=real),
-            ) as m:
-                await s.record_response("g", "好的，回答", ())
-                await s.flush()
-            m.assert_awaited_once()
-            # bound method 每次访问是新对象，用相等断言（同函数同实例即相等）
-            self.assertEqual(m.await_args.args[0], s._write_snapshot_sync)
-
-        asyncio.run(run())
-
-
-class TestDisabledMatch(unittest.TestCase):
-    """disabled_sessions 匹配形态（origin 全串/群号/前缀/# base/大小写）。"""
-
-    def test_match_keys_all_shapes(self):
-        keys = match_keys("aiocqhttp:GroupMessage:222", "222")
-        self.assertIn("aiocqhttp:groupmessage:222", keys)
-        self.assertIn("222", keys)
-        self.assertIn("group:222", keys)
-        self.assertIn("groupmessage:222", keys)
-
-    def test_match_keys_base_split_for_topic(self):
-        # Telegram topic 群：会话号形如 222#thread
-        keys = match_keys("telegram:GroupMessage:222#5", "222#5")
-        self.assertIn("222#5", keys)
-        self.assertIn("222", keys)
-        self.assertIn("group:222", keys)
-
-    def test_match_keys_case_insensitive(self):
-        keys = match_keys("AIOCQHTTP:GROUPMESSAGE:222", "222")
-        self.assertIn("aiocqhttp:groupmessage:222", keys)
-        self.assertIn("group:222", keys)
-
-    def test_match_keys_empty(self):
-        self.assertEqual(match_keys("", ""), frozenset())
-
-    def test_group_id_from_event_getter_first(self):
-        class Ev:
-            unified_msg_origin = "aiocqhttp:GroupMessage:111"
-
-            def get_group_id(self):
-                return "222"
-
-        self.assertEqual(group_id_from_event(Ev()), "222")
-
-    def test_group_id_from_event_getter_exception_falls_back(self):
-        class Ev:
-            unified_msg_origin = "aiocqhttp:GroupMessage:111"
-
-            def get_group_id(self):
-                raise RuntimeError("boom")
-
-        self.assertEqual(group_id_from_event(Ev()), "111")
-
-    def test_group_id_from_event_origin_fallback(self):
-        class Ev:
-            unified_msg_origin = "aiocqhttp:GroupMessage:333"
-
-        self.assertEqual(group_id_from_event(Ev()), "333")
-
-    def test_group_id_from_event_private_message_empty(self):
-        class Ev:
-            unified_msg_origin = "aiocqhttp:PrivateMessage:444"
-
-        self.assertEqual(group_id_from_event(Ev()), "")
-
-    def test_is_session_disabled_event_none_uses_origin(self):
-        self.assertTrue(is_session_disabled(frozenset({"222"}), "aiocqhttp:GroupMessage:222", None))
-        self.assertFalse(is_session_disabled(frozenset({"333"}), "aiocqhttp:GroupMessage:222", None))
-
-    def test_is_session_disabled_event_group_id_wins(self):
-        class Ev:
-            unified_msg_origin = "aiocqhttp:GroupMessage:222"
-
-            def get_group_id(self):
-                return "333"
-
-        self.assertTrue(is_session_disabled(frozenset({"333"}), "aiocqhttp:GroupMessage:222", Ev()))
-        self.assertFalse(is_session_disabled(frozenset({"222"}), "aiocqhttp:GroupMessage:222", Ev()))
-
-    def test_is_session_disabled_empty(self):
-        self.assertFalse(is_session_disabled(frozenset(), "aiocqhttp:GroupMessage:222", None))
-
-    def test_parse_group_id_from_two_part_origin(self):
-        self.assertEqual(_parse_group_id_from_origin("GroupMessage:111"), "111")
-
-    def test_is_session_disabled_two_part_origin_matches_numeric_group_id(self):
-        self.assertTrue(is_session_disabled(frozenset({"111"}), "GroupMessage:111", None))
-
-    def test_parse_group_id_from_three_part_origin(self):
-        self.assertEqual(_parse_group_id_from_origin("aiocqhttp:GroupMessage:111"), "111")
-
-
-class TestStoreBoundaries(unittest.TestCase):
-    """store 钳制与序列化边界（此前无覆盖）。"""
-
-    def test_window_below_repeat_threshold_is_clamped(self):
-        # 窗口 < 重复阈值会形成"永不达标"的静默死区，构造期钳到阈值
-        store = RuntimeStateStore(temporary_directory(self) + "/s.json", 14, 1, ())
-        self.assertEqual(store.recent_reply_window, 3)
-
-    def test_opener_truncated_to_max_opener_len(self):
-        self.assertEqual(extract_opener("一二三四五六七八九十多余尾巴，继续"), "一二三四五六七八")
-
-    def test_repeated_items_respects_limit(self):
-        items = ["甲", "甲", "甲", "乙", "乙", "乙", "丙", "丙", "丙"]
-        self.assertEqual(repeated_items(items, limit=2), ["甲", "乙"])
-
-    def test_state_from_dict_zero_timestamp_stays_unset(self):
-        state = _state_from_dict({"a": ["翻案腔"], "r": "好的", "t": 0}, 8)
-        self.assertIsNone(state.updated_at)
-        self.assertEqual(state.avoid_openers, ["翻案腔"])
-
-    def test_state_from_dict_non_list_avoid_key_yields_empty(self):
-        state = _state_from_dict({"a": "不是列表", "r": ""}, 8)
-        self.assertEqual(state.avoid_openers, [])
+    async def test_write_failure_is_reported_not_raised(self) -> None:
+        store = self.make_store()
+        store._write_snapshot_sync = lambda payload: (_ for _ in ()).throw(OSError("disk full"))  # type: ignore[method-assign]
+        await store.record_response("s1", "然而连发。", ("然而连发",))
+        self.assertFalse(await store.flush())
+        self.assertTrue(store.has_pending_save)
+
+
+class CustomClicheTest(StoreCase):
+    def test_invalid_entries_are_counted_by_reason(self) -> None:
+        store = self.make_store(custom_cliches=["正常", "  ", "正常", "长" * 40])
+        self.assertEqual(store.custom_cliches, ("正常",))
+        reasons = dict(store.custom_cliches_ignored_reasons)
+        self.assertEqual(reasons, {"empty": 1, "too_long": 1, "duplicate": 1})
+
+    async def test_custom_word_is_persisted_as_a_tag(self) -> None:
+        """自定义词可能敏感，落盘只留序号与指纹，原文不写进文件。"""
+        store = self.make_store(custom_cliches=["暗号是蓝色"])
+        await store.record_response("s1", "正文", ("暗号是蓝色",))
+        await store.flush()
+        raw = store.state_path.read_text(encoding="utf-8")
+        self.assertNotIn("暗号是蓝色", raw)
+        self.assertEqual(store.resolve_name(store.get("s1").avoid_openers[0]), "暗号是蓝色")
+
+    async def test_reordered_config_does_not_swap_words(self) -> None:
+        """配置改序后旧序号会指向另一个词，指纹对不上必须丢弃，不能张冠李戴。"""
+        store = self.make_store(custom_cliches=["啊这", "好的吧"])
+        await store.record_response("s1", "正文", ("啊这",))
+        await store.flush()
+        tag = store.get("s1").avoid_openers[0]
+
+        reordered = self.make_store(custom_cliches=["好的吧", "啊这"])
+        reordered.sessions = store.sessions
+        self.assertEqual(reordered.resolve_name(tag), "")
+
+    async def test_removed_word_drops_the_tag(self) -> None:
+        store = self.make_store(custom_cliches=["啊这"])
+        await store.record_response("s1", "正文", ("啊这",))
+        await store.flush()
+        tag = store.get("s1").avoid_openers[0]
+
+        emptied = self.make_store(custom_cliches=[])
+        emptied.sessions = store.sessions
+        self.assertEqual(emptied.resolve_name(tag), "")
+
+    async def test_legacy_plaintext_entries_are_tagged_on_load(self) -> None:
+        """升级用户的状态文件里存的是自定义词原文，加载后必须就地转成标签，否则敏感词一直留在文件里。"""
+        store = self.make_store(custom_cliches=["暗号是蓝色"])
+        store.state_path.write_text(
+            '{"disabled_sessions": [], "sessions": {"s1": {"a": ["暗号是蓝色"], "r": "", "t": 4102444800}}}',
+            encoding="utf-8",
+        )
+        reloaded = RuntimeStateStore(
+            store.state_path, retention_days=365, recent_reply_window=8, custom_cliches=["暗号是蓝色"]
+        )
+        tagged = reloaded.get("s1").avoid_openers[0]
+        self.assertNotIn("暗号是蓝色", tagged)
+        self.assertEqual(reloaded.resolve_name(tagged), "暗号是蓝色")
+        await reloaded.flush()
+        self.assertNotIn("暗号是蓝色", store.state_path.read_text(encoding="utf-8"))
+
+
+class OpenerTest(unittest.TestCase):
+    def test_prefixes_win(self) -> None:
+        self.assertEqual(extract_opener("好的，这就去办"), "好的")
+
+    def test_long_clause_is_truncated(self) -> None:
+        self.assertEqual(len(extract_opener("这个问题的答案需要先看日志再说")), 8)
+
+    def test_single_char_is_ignored(self) -> None:
+        self.assertEqual(extract_opener("我"), "")
+
+    def test_repeated_items_respects_threshold(self) -> None:
+        self.assertEqual(repeated_items(["a", "b", "a", "a"], limit=5), ["a"])
+
+
+class DisabledMatchTest(unittest.TestCase):
+    def test_group_keys_cover_common_forms(self) -> None:
+        keys = match_keys("aiocqhttp:GroupMessage:42", "42")
+        for expected in ("group:42", "groupmessage:42", "42"):
+            self.assertIn(expected, keys)
+
+    def test_session_is_matched_by_group(self) -> None:
+        disabled = frozenset({"group:42"})
+        self.assertTrue(is_session_disabled(disabled, "x:GroupMessage:42", FakeEvent(group_id="42")))
+        self.assertFalse(is_session_disabled(disabled, "x:GroupMessage:7", FakeEvent(group_id="7")))
 
 
 if __name__ == "__main__":
-    unittest.main()
+    asyncio.run(unittest.main())

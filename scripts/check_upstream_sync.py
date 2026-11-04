@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Compare the vendored lite fixture and injected core against an upstream natural-talk checkout."""
+"""检测注入规则相对上游 natural-talk 的漂移。
+
+上游 SKILL.md 是规则语义的来源，本插件只保留日常对话与日常工作够用的子集；
+本脚本核对两件事：锚点仍在本地规则里，上游对这些锚点仍然这么说。
+"""
 
 from __future__ import annotations
 
@@ -9,83 +13,67 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+ANCHORS_PATH = REPO / "tests" / "fixtures" / "stable-rules-anchors.json"
+LITE_FIXTURE_PATH = REPO / "tests" / "fixtures" / "system-prompt-lite.txt"
 
-# 清单来源：上游必备准绳标签与禁入词以 tests/fixtures/stable-rules-anchors.json 为准
-_ANCHORS_PATH = REPO / "tests" / "fixtures" / "stable-rules-anchors.json"
+
+def load_anchors() -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    data = json.loads(ANCHORS_PATH.read_text(encoding="utf-8"))
+    return (
+        tuple(data["guideline_tags"]),
+        tuple(data["anchors"]),
+        tuple(data["local_only"]),
+        tuple(data["forbidden"]),
+    )
 
 
-def _load_anchors() -> tuple[tuple[str, ...], tuple[str, ...]]:
-    data = json.loads(_ANCHORS_PATH.read_text(encoding="utf-8"))
-    return tuple(data["guideline_tags"]), tuple(data["forbidden"])
+def upstream_text(upstream: Path) -> str:
+    """上游规范源：SKILL.md 正文 + rules-full.md（存在才读）。"""
+    parts = [(upstream / "SKILL.md").read_text(encoding="utf-8")]
+    full = upstream / "references" / "rules-full.md"
+    if full.is_file():
+        parts.append(full.read_text(encoding="utf-8"))
+    return "\n".join(parts)
+
+
+def check(upstream: Path, lite_core: str) -> list[str]:
+    tags, anchors, local_only, forbidden = load_anchors()
+    upstream_body = upstream_text(upstream)
+    return [
+        *(f"上游已无 {tag} 条" for tag in tags if f"- {tag} " not in upstream_body),
+        *(f"锚点不在本地规则：{anchor}" for anchor in anchors if anchor not in lite_core),
+        *(f"本地专有锚点丢失：{anchor}" for anchor in local_only if anchor not in lite_core),
+        *(f"脱节残留词渗入本地规则：{phrase}" for phrase in forbidden if phrase in lite_core),
+        *(f"锚点已不在上游：{anchor}" for anchor in anchors if anchor not in upstream_body),
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Check synchronization with natural-talk upstream.")
+    parser = argparse.ArgumentParser(description="Check drift against a natural-talk checkout.")
     parser.add_argument("--upstream", required=True, help="path to a natural-talk checkout")
     args = parser.parse_args(argv)
+
     upstream = Path(args.upstream)
-    if not _ANCHORS_PATH.is_file():
-        print(f"anchors fixture missing: {_ANCHORS_PATH}", file=sys.stderr)
-        return 1
-    required_tags, forbidden_phrases = _load_anchors()
-
-    skill_path = upstream / "SKILL.md"
-    rules_full_path = upstream / "references" / "rules-full.md"
-
-    scan_path = upstream / "scripts" / "scan-mechanical.py"
-
-    if not skill_path.is_file():
-        print(f"upstream SKILL.md missing: {skill_path}", file=sys.stderr)
+    if not (upstream / "SKILL.md").is_file():
+        print(f"upstream SKILL.md missing: {upstream / 'SKILL.md'}", file=sys.stderr)
         return 2
-    if not rules_full_path.is_file():
-        print(f"upstream references/rules-full.md missing: {rules_full_path}", file=sys.stderr)
-        return 2
-
-    # 上游 2026-09-14 起合并 references：dialogue.md 并入 SKILL.md/rules-full.md，
-    # 规范源以 SKILL.md + rules-full.md 为准。
-    upstream_parts = [skill_path.read_text(encoding="utf-8"), rules_full_path.read_text(encoding="utf-8")]
-    fiction_path = upstream / "references" / "fiction.md"
-    if fiction_path.is_file():
-        upstream_parts.append(fiction_path.read_text(encoding="utf-8"))
-    if scan_path.is_file():
-        upstream_parts.append(scan_path.read_text(encoding="utf-8"))
-    upstream_content = "\n".join(upstream_parts)
-
-    # 验证上游单一事实源中是否包含核心准绳定义
-    missing_in_upstream = [tag for tag in required_tags if tag not in upstream_content]
-    if missing_in_upstream:
-        print(f"upstream is missing guideline definitions: {missing_in_upstream}", file=sys.stderr)
-        return 1
 
     sys.path.insert(0, str(REPO))
     from tests._support import ensure_plugin_package
 
     ensure_plugin_package()
-    from astrbot_plugin_human_chat_quality.quality_rules import _LITE_CORE
+    from astrbot_plugin_natural_chat.rules import _LITE_CORE
 
-    # 验证本地核心规则与本地 fixture 严格一致
-    fixture_path = REPO / "tests" / "fixtures" / "system-prompt-lite.txt"
-    if not fixture_path.is_file():
-        print(f"local fixture missing: {fixture_path}", file=sys.stderr)
-        return 1
-    fixture_text = fixture_path.read_text(encoding="utf-8")
-    if _LITE_CORE != fixture_text:
-        print("quality_rules._LITE_CORE does not match tests/fixtures/system-prompt-lite.txt", file=sys.stderr)
+    if _LITE_CORE != LITE_FIXTURE_PATH.read_text(encoding="utf-8"):
+        print("rules._LITE_CORE 与 tests/fixtures/system-prompt-lite.txt 不同步", file=sys.stderr)
         return 1
 
-    # 验证本地规则覆盖日常问答核心准绳
-    missing_in_core = [f"[{tag}]" for tag in required_tags if f"[{tag}]" not in _LITE_CORE]
-    if missing_in_core:
-        print(f"quality_rules._LITE_CORE is missing required guideline tags: {missing_in_core}", file=sys.stderr)
+    problems = check(upstream, _LITE_CORE)
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    if problems:
         return 1
-
-    # 验证脱节残留词未渗入
-    leaked = [phrase for phrase in forbidden_phrases if phrase in _LITE_CORE]
-    if leaked:
-        print(f"quality_rules._LITE_CORE contains desynchronized phrases: {leaked}", file=sys.stderr)
-        return 1
-
-    print("upstream sync: OK (SKILL.md + rules-full.md guidelines verified)")
+    print("upstream sync: OK")
     return 0
 
 

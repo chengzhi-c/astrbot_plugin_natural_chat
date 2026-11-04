@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -18,8 +20,6 @@ except ImportError:  # pragma: no cover
 
 from .constants import (
     DAY_SECONDS,
-    DEFAULT_RECENT_REPLY_WINDOW,
-    DEFAULT_STATE_RETENTION_DAYS,
     MAX_AVOID_ITEM_LEN,
     MAX_AVOID_ITEMS,
     MAX_OPENER_LEN,
@@ -35,6 +35,16 @@ from .protocols import MessageEventProtocol
 def _now() -> float:
     """当前时间戳（独立函数，便于测试注入时间轴）。"""
     return time.time()
+
+
+# 配置文件里的自定义避用词落盘时改用「序号:指纹」标签，避免用户配置的敏感词写进状态文件。
+CUSTOM_CLICHE_TAG = "<custom:"
+_TAG_INDEX_RE = re.compile(r"<custom:(\d+):([0-9a-f]{8})>")
+
+
+def _fingerprint(text: str) -> str:
+    """内容指纹：只用来校验标签与词的对应关系，不可逆，不泄露原文。"""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
 
 
 @dataclass
@@ -54,9 +64,9 @@ class RuntimeStateStore:
         custom_cliches: Sequence[str] | None = None,
     ) -> None:
         self.state_path = Path(state_path)
-        self.retention_days = max(MIN_STATE_RETENTION_DAYS, int(retention_days or DEFAULT_STATE_RETENTION_DAYS))
+        self.retention_days = max(MIN_STATE_RETENTION_DAYS, int(retention_days))
         # 窗口不得小于重复阈值，否则「≥N 次」永远达不到（静默死区）
-        self.recent_reply_window = max(OPENER_REPEAT_THRESHOLD, int(recent_reply_window or DEFAULT_RECENT_REPLY_WINDOW))
+        self.recent_reply_window = max(OPENER_REPEAT_THRESHOLD, int(recent_reply_window))
         # 群主自定义词（任意位置精确命中即提示）；内置末尾模板另走 DEFAULT_ENDINGS。
         # 超长条目（>MAX_AVOID_ITEM_LEN）在构造期过滤并告警，避免每轮命中又被丢弃的静默无效配置。
         cleaned: list[str] = []
@@ -76,10 +86,12 @@ class RuntimeStateStore:
         self.custom_cliches: tuple[str, ...] = tuple(cleaned)
         self.custom_cliches_ignored_reasons: tuple[tuple[str, int], ...] = tuple(ignored.items())
         self.custom_cliches_ignored = sum(ignored.values())
+        # 自定义词原文可能敏感，落盘用序号标签替代；索引与 custom_cliches 同步构建
+        self._custom_index: dict[str, int] = {item: index for index, item in enumerate(self.custom_cliches)}
         if logger is not None and self.custom_cliches_ignored:
-            logger.warning(f"[HumanChatQuality] ignored {self.custom_cliches_ignored} invalid custom_cliche entries")
+            logger.warning(f"[NaturalChat] ignored {self.custom_cliches_ignored} invalid custom_cliche entries")
         self.sessions: dict[str, SessionState] = {}
-        # 运行时命令（/humanq off）写入的禁用会话；与配置键 disabled_sessions（静态黑名单）区分，避免同名歧义
+        # 运行时命令（/natural off）写入的禁用会话；与配置键 disabled_sessions（静态黑名单）区分，避免同名歧义
         self.runtime_disabled: set[str] = set()
         self._state_lock = asyncio.Lock()
         self._write_lock = asyncio.Lock()
@@ -109,13 +121,13 @@ class RuntimeStateStore:
                 await asyncio.to_thread(self._write_snapshot_sync, payload)
             except Exception as e:
                 if logger is not None and not self._save_failed:
-                    logger.warning(f"[HumanChatQuality] state save failed: {e}")
+                    logger.warning(f"[NaturalChat] state save failed: {e}")
                 self._save_failed = True
                 return False
             async with self._state_lock:
                 self._saved_generation = max(self._saved_generation, generation)
             if logger is not None and self._save_failed:
-                logger.debug("[HumanChatQuality] state persistence recovered")
+                logger.debug("[NaturalChat] state persistence recovered")
             self._save_failed = False
             return True
 
@@ -174,6 +186,29 @@ class RuntimeStateStore:
             needs_flush = self.has_pending_save
         return await self.flush() if needs_flush else True
 
+    def _persisted_name(self, item: str) -> str:
+        """自定义词命中后按「序号+内容指纹」落盘，不把用户配置的原文写进状态文件。
+
+        自定义词由群主配置，可能本身就是敏感词；模型回复开头只截 8 字且随保留期过期，风险低得多。
+        内置信号名是词表标签本身，照原样保存。
+        指纹用来兜住「配置改序或删词后序号指向了另一个词」：对不上就丢弃，绝不把 A 词显示成 B 词。
+        """
+        index = self._custom_index.get(item)
+        return item if index is None else f"{CUSTOM_CLICHE_TAG}{index}:{_fingerprint(item)}>"
+
+    def resolve_name(self, item: str) -> str:
+        """把落盘标签还原成可读原文；配置已改、序号越界或指纹不符时丢弃该项。"""
+        if not item.startswith(CUSTOM_CLICHE_TAG):
+            return item
+        match = _TAG_INDEX_RE.fullmatch(item)
+        if not match:
+            return ""
+        index = int(match.group(1))
+        if index >= len(self.custom_cliches):
+            return ""
+        word = self.custom_cliches[index]
+        return word if _fingerprint(word) == match.group(2) else ""
+
     async def record_response(
         self,
         session_id: str,
@@ -203,8 +238,12 @@ class RuntimeStateStore:
             previous = set(state.avoid_openers)
             merged: list[str] = []
             for item in [*detected_cliches, *repeated]:
-                if item and len(item) <= MAX_AVOID_ITEM_LEN and item not in merged:
-                    merged.append(item)
+                # 长度与去重都按原文判定：落盘形态是标签，标签长度不代表内容长度
+                if not item or len(item) > MAX_AVOID_ITEM_LEN:
+                    continue
+                persisted = self._persisted_name(item)
+                if persisted not in merged:
+                    merged.append(persisted)
             state.avoid_openers = merged[:MAX_AVOID_ITEMS]
             new_items = sum(1 for item in state.avoid_openers if item not in previous)
 
@@ -227,7 +266,7 @@ class RuntimeStateStore:
         if not isinstance(raw, dict):
             self._backup_corrupt_state_file()
             if logger is not None:
-                logger.warning(f"[HumanChatQuality] state file root is not an object, reset ({type(raw).__name__})")
+                logger.warning(f"[NaturalChat] state file root is not an object, reset ({type(raw).__name__})")
             self.sessions = {}
             self.runtime_disabled = set()
             return
@@ -245,35 +284,40 @@ class RuntimeStateStore:
                 self.runtime_disabled = set()
                 if logger is not None:
                     logger.warning(
-                        f"[HumanChatQuality] disabled_sessions malformed ({type(raw_disabled).__name__}), skipped"
+                        f"[NaturalChat] disabled_sessions malformed ({type(raw_disabled).__name__}), skipped"
                     )
             sessions = raw.get("sessions", {})
             if not isinstance(sessions, dict):
                 raise TypeError(f"sessions must be a dict, got {type(sessions).__name__}")
             loaded: dict[str, SessionState] = {}
+            skipped = 0
             for session_id, value in sessions.items():
                 if not isinstance(value, dict):
                     # 条目级畸形：备份现场一次并跳过坏键，其余会话不受影响
                     if not backed_up:
                         self._backup_corrupt_state_file()
                         backed_up = True
-                    if logger is not None:
-                        logger.warning(
-                            f"[HumanChatQuality] session {session_id!r} malformed ({type(value).__name__}), skipped"
-                        )
+                    skipped += 1
                     continue
                 try:
                     state = _state_from_dict(value, self.recent_reply_window)
-                except (AttributeError, TypeError, ValueError) as error:
+                except (AttributeError, TypeError, ValueError):
                     if not backed_up:
                         self._backup_corrupt_state_file()
                         backed_up = True
-                    if logger is not None:
-                        logger.warning(f"[HumanChatQuality] session {session_id!r} malformed ({error}), skipped")
+                    skipped += 1
                     continue
                 if state.updated_at is None and state.last_response_at is None:
                     state.updated_at = file_mtime
+                # 旧版本把自定义词原文直接落盘过：加载时就地转成标签，否则升级用户的敏感词会一直留在文件里。
+                # 改写发生时要标记待落盘，否则 flush 因无变更而跳过，原文继续留在磁盘上。
+                tagged = [self._persisted_name(item) for item in state.avoid_openers]
+                if tagged != state.avoid_openers:
+                    state.avoid_openers = tagged
+                    self._generation += 1
                 loaded[str(session_id)] = state
+            if skipped and logger is not None:
+                logger.warning(f"[NaturalChat] skipped {skipped} malformed session entries")
             self.sessions = loaded
             self._prune_expired()
         except Exception as e:
@@ -282,7 +326,7 @@ class RuntimeStateStore:
             self.sessions = {}
             self.runtime_disabled = set()
             if logger is not None:
-                logger.warning(f"[HumanChatQuality] state file reset due to load failure: {e}")
+                logger.warning(f"[NaturalChat] state file reset due to load failure: {e}")
 
     def _snapshot_unlocked(self) -> dict[str, Any]:
         return {
@@ -395,7 +439,7 @@ def group_id_from_event(event: MessageEventProtocol) -> str:
                 return str(value).strip()
         except Exception as e:
             if logger is not None:
-                logger.debug(f"[HumanChatQuality] get_group_id failed: {e}")
+                logger.debug(f"[NaturalChat] get_group_id failed: {e}")
     return _parse_group_id_from_origin(unified_origin(event))
 
 
@@ -436,27 +480,25 @@ def repeated_items(items: list[str], limit: int, threshold: int = OPENER_REPEAT_
 
 
 def _state_from_dict(data: dict[str, Any], recent_reply_window: int) -> SessionState:
-    """从字典加载状态（仅新格式 v2 紧凑键；pre-2.0 旧键拒收，走备份+跳过）。
+    """加载单条会话状态。紧凑键：a=避用项，r=近期开头（逗号分隔），t=更新时间戳。"""
+    recent_str = data.get("r", "")
+    if not isinstance(recent_str, str):
+        raise TypeError(f"r must be a string, got {type(recent_str).__name__}")
+    return SessionState(
+        avoid_openers=_list_of_str(data.get("a", []), MAX_AVOID_ITEMS),
+        recent_openers=[item[:MAX_OPENER_LEN] for item in recent_str.split(",") if item][:recent_reply_window],
+        last_response_at=None,
+        updated_at=_parse_timestamp(data.get("t")),
+    )
 
-    新格式（v2，紧凑）：{"a": [...], "r": "x,y,z", "t": 123456}
-    """
-    # 新格式（紧凑）
-    if "a" in data:
-        recent_str = data.get("r", "")
-        if not isinstance(recent_str, str):
-            raise TypeError(f"r must be a string, got {type(recent_str).__name__}")
-        recent = [s for s in recent_str.split(",") if s] if recent_str else []
-        return SessionState(
-            avoid_openers=_list_of_str(data.get("a", []), MAX_AVOID_ITEMS),
-            recent_openers=[item[:MAX_OPENER_LEN] for item in recent[:recent_reply_window]],
-            last_response_at=None,
-            updated_at=float(data.get("t", 0)) if data.get("t") else None,
-        )
 
-    # pre-2.0 旧键不再兼容：拒收以复用备份+跳过容错（升级后首次落盘即整体迁移，此分支只剩残留文件兜底）
-    if "avoid_openers" in data or "recent_openers" in data:
-        raise TypeError("retired pre-2.0 state entry")
-    return SessionState()
+def _parse_timestamp(value: Any) -> float | None:
+    """时间戳只接受有限正数；nan/inf/负数一律当缺失，否则 _prune_expired 的残留判断恒真或恒假。"""
+    try:
+        timestamp = float(value)
+    except (TypeError, ValueError):
+        return None
+    return timestamp if math.isfinite(timestamp) and timestamp > 0 else None
 
 
 def _state_to_dict(state: SessionState, recent_reply_window: int) -> dict[str, Any]:

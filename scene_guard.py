@@ -1,14 +1,15 @@
-"""会话场景守卫：判定请求是否属于正式写作 / 文艺创作 / 粘性续写。
+"""会话场景守卫：判定这一轮是不是「改语气」或「转手成品文本」。
 
-只做纯文本判定，不持有状态；粘性 TTL 状态与让位编排归 core。
-词表对齐上游 natural-talk 生成模式的核心规则（正式文稿与 fiction 让位）。
+插件管的是自己怎么说话。用户让模型改一段已有文字时，语体由用户指定，不归本插件管；
+贴来一大段要转发的成品文本时，也不该被改写。这两类让位。
+日常工作里的写代码、写脚本、写通知、写周报都照常注入——那才是这个插件的主场。
 """
 
 from __future__ import annotations
 
 import re
 
-from .constants import STICKY_FOLLOWUP_MAX_LEN
+from .constants import PASTE_YIELD_MIN_CHARS, STICKY_FOLLOWUP_MAX_LEN
 from .protocols import MessageEventProtocol
 
 
@@ -17,71 +18,55 @@ def event_text(event: MessageEventProtocol | None) -> str:
     if event is not None:
         for attr in ("get_message_str", "message_str", "message", "text"):
             try:
-                v = getattr(event, attr, None)
-                if callable(v):
-                    v = v()
-                if isinstance(v, str) and v.strip():
-                    return v.strip()
+                value = getattr(event, attr, None)
+                if callable(value):
+                    value = value()
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
             except Exception:
                 continue
     return ""
 
 
-_FORMAL_ACTIONS = re.compile(r"写|撰写|起草|拟定|拟(?!定)|润色|改写|改成|改这篇|修改|生成|翻译|输出")
-_FORMAL_ARTIFACTS = re.compile(
-    r"论文|摘要|公文|演讲稿|营销文案|法律(?:文书|声明)|合同|会议纪要|(?:正式)?道歉声明|正式声明|新闻稿|采购申请|正式通知|变更通知|服务通知|研究计划|求职邮件|周报|日报|公告|汇报"
+_TONE_ACTION = re.compile(r"润色|改写|重写|改一下|改改|改得|顺一下|顺顺|理顺|换个说法|换种说法|换个口吻")
+# 显式语气要求：既认「改成X语气」，也认「写得自然点」「口语化一点」这类不带「改成」的软性说法。
+# 后者必须带程度副词或「点/一些」，避免误伤「这个设计很自然」这类陈述。
+# 词尾不得紧跟汉字，否则「改自然语言处理的代码」会被当成改语气。
+_TONE_MARKERS = re.compile(
+    r"改成[^，。；！？\n]{0,6}(?:语气|口吻|腔调)"
+    r"|太\s*AI\s*了?|AI\s*(?:味|腔)"
+    r"|(?:写|说|表达|改)得?(?:更)?(?:自然|口语|随和|亲切|正式|委婉|简洁|生动)(?:一?点|一?些|些)?(?![\u4e00-\u9fff])"
+    r"|(?:口语化|自然化|拟人化)(?:一?点|一?些|些)?(?![\u4e00-\u9fff])"
 )
-# 技术系统排除：产物词与系统词可跨少量名词性修饰（"通知推送的代码"、"周报汇总的服务"）。
-# 修饰位不得含传达类动词（说明/告知/介绍…）——"写个公告说明服务下线"是正式公告，不是技术件。
-_TECH_SYSTEM_SUFFIXES = re.compile(
-    r"(?:合同|论文|公文|会议纪要|通知|公告|周报|日报|汇报)"
-    r"(?:(?!(?:说明|告知|介绍|描述|解释|讲清|说明白))[^，。；！？\n]){0,6}"
-    r"(?:系统|平台|模块|表结构|数据库|接口|代码|算法|架构|逻辑|组件|服务|队列|脚本|函数|查重)"
+_DEMO_TARGET = re.compile(r"这段话|这段文字|这段|这篇|这份|这封|这条|这句|这稿|稿子|文字|文档")
+_FORMAL_ARTIFACT = re.compile(r"文书|声明|公文|稿件|稿子|邮件|文案|申请|通知|纪要")
+# 任意位置匹配：转手文本前面常带「[图片]」「@某人」这类前缀
+_PASTE_BODY = re.compile(r"(?:^|[\s\]）)])(?:原文|内容|全文)如下")
+_PASTE_TASK = re.compile(r"润色|改写|重写|翻译|总结|摘要|归纳|校对|精简|扩写|改一下|改改|顺一下")
+
+
+def is_tone_request(text: str) -> str | None:
+    """返回让位类别：tone（改语气）/ copy（转手成品文本）/ None（正常对话，照常注入）。"""
+    stripped = text.strip()
+    if not stripped:
+        return None
+    if _TONE_MARKERS.search(stripped) or (
+        _TONE_ACTION.search(stripped) and (_DEMO_TARGET.search(stripped) or _FORMAL_ARTIFACT.search(stripped))
+    ):
+        return "tone"
+    if len(stripped) >= PASTE_YIELD_MIN_CHARS and _PASTE_BODY.search(stripped) and not _PASTE_TASK.search(stripped):
+        return "copy"
+    return None
+
+
+_CONTINUATION_RE = re.compile(
+    r"^(?:继续|接着)(?:改|润色|写|顺|来)(?:一下|这|它|第[一二三四五六七八九十]+[段落章节])?[。.!！?？]*$"
+    r"|^再(?:改|润色|写|顺)(?:一下)?[。.!！?？]*$"
+    r"|^(?:同上|按这个改|继续这样|就这样改)[。.!！?？]*$"
 )
-# 通知类的起草动词：量词全覆盖（写个/写份/写一封/拟个/拟一份/拟一篇…）
-_NOTICE_DRAFT = re.compile(r"拟定|起草|撰写|(?:写|拟)(?:个|一份|份|一封|一篇|篇)")
-# 私域场景豁免：私下叮嘱与群内知会不是正式文体
-_PRIVATE_NOTICE = re.compile(r"朋友|同学|家人|今晚|聚餐")
-_PRIVATE_ARTIFACTS = re.compile(r"通知|公告")
-_CREATIVE_ACTIONS = re.compile(r"写|创作|续写|扮演|roleplay", re.IGNORECASE)
-_CREATIVE_GENRES = re.compile(r"小说|故事|同人|角色卡|剧本|角色扮演|roleplay", re.IGNORECASE)
-
-
-def is_formal_writing_request(event: MessageEventProtocol | None) -> bool:
-    text = event_text(event)
-    if not text:
-        return False
-    # 技术系统与私域场景优先让行，再判正式文体，否则会接管技术问答与私下叮嘱
-    if _TECH_SYSTEM_SUFFIXES.search(text):
-        return False
-    if _PRIVATE_NOTICE.search(text) and _PRIVATE_ARTIFACTS.search(text):
-        return False
-    if _NOTICE_DRAFT.search(text) and "通知" in text:
-        return True
-    return bool(_FORMAL_ACTIONS.search(text) and _FORMAL_ARTIFACTS.search(text))
-
-
-_USER_STORY = re.compile(r"用户故事|user story", re.IGNORECASE)
-
-
-def is_creative_writing_request(event: MessageEventProtocol | None) -> bool:
-    text = event_text(event)
-    if not text:
-        return False
-    # 「用户故事 / user story」是产品任务，不是体裁；屏蔽后再看还有没有真体裁。
-    text = _USER_STORY.sub(" ", text)
-    return bool(_CREATIVE_ACTIONS.search(text) and _CREATIVE_GENRES.search(text))
-
-
-_STICKY_EXACT = re.compile(
-    r"^(继续|然后|接着|再改一下|按这个写|同上|continue|go on)[。.!！?？]*$",
-    re.IGNORECASE,
-)
-_STICKY_WRITE = re.compile(r"^(?:继续|接着|再).*(?:写|改|润色|拟)")
 
 
 def is_sticky_followup(text: str) -> bool:
+    """让位窗口内的续写口令（继续／接着改／同上）。普通短消息不算，否则日常问答会被吞。"""
     stripped = text.strip()
-    if not stripped or len(stripped) > STICKY_FOLLOWUP_MAX_LEN:
-        return False
-    return bool(_STICKY_EXACT.fullmatch(stripped) or _STICKY_WRITE.search(stripped))
+    return bool(stripped) and len(stripped) <= STICKY_FOLLOWUP_MAX_LEN and bool(_CONTINUATION_RE.fullmatch(stripped))

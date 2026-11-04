@@ -47,13 +47,14 @@
     "type": "int",
     "default": 14,
     "hint": "会话状态保留周期，超过该天数未更新自动清理。取值范围 1–365。",
-    "condition": {"enabled": true}
+    "condition": {"enabled": true},
+    "slider": {"min": 1, "max": 365, "step": 1}
   },
   "disabled_sessions": {
     "description": "禁用会话列表",
     "type": "list",
     "default": [],
-    "hint": "静态禁用会话列表，每行一个群号（如 123456）或完整来源标识。运行时临时调整请使用 /humanq off 命令。",
+    "hint": "静态禁用会话列表，每行一个群号（如 123456）或完整来源标识。运行时临时调整请使用 /natural off 命令。",
     "condition": {"enabled": true}
   },
   "debug_log": {

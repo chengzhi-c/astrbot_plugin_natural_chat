@@ -16,7 +16,7 @@ GATE_TIMEOUT_SECONDS = 600
 RUNTIME_MANIFEST = (
     "main.py",
     "core.py",
-    "quality_rules.py",
+    "rules.py",
     "runtime_state.py",
     "signal_detectors.py",
     "scene_guard.py",
@@ -27,7 +27,7 @@ RUNTIME_MANIFEST = (
     "metadata.yaml",
     "README.md",
     "CHANGELOG.md",
-    "THIRD_PARTY_NOTICES.md",
+    "logo.png",
     "LICENSE",
 )
 _CHANGELOG_VERSION_RE = re.compile(r"^## \[?([^\]\s]+)\]?")

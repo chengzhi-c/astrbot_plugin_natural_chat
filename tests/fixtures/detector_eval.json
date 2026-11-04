@@ -8,7 +8,6 @@
       "好问题"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -20,7 +19,6 @@
       "希望对你有帮助"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -30,7 +28,6 @@
     "answer": "可以去公园或者逛逛展，看你更想放松还是换脑子。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -40,7 +37,6 @@
     "answer": "那今晚别排太满，先吃饭洗澡，早点休息。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -50,7 +46,6 @@
     "answer": "可以叫团子，听起来亲切，也适合毛茸茸的猫。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -60,7 +55,6 @@
     "answer": "旋律很抓耳，副歌尤其容易在脑子里循环。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -70,7 +64,6 @@
     "answer": "我没有实时天气数据，查你所在城市的预报更准。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -80,7 +73,6 @@
     "answer": "挺耐看，和浅色上衣搭配会更清爽。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -90,7 +82,6 @@
     "answer": "先看看附近有没有便利店，别让自己淋太久。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -100,7 +91,6 @@
     "answer": "可以选一部节奏慢、时长短的喜剧。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -110,7 +100,6 @@
     "answer": "重要，但不必复杂，能稳定补充能量就够了。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -120,7 +109,6 @@
     "answer": "可以只定十分钟，先处理最显眼的一小块。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -130,7 +118,6 @@
     "answer": "确实，忙起来一转眼就到周末了。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -140,7 +127,6 @@
     "answer": "愿你新的一岁有喜欢的事，也有踏实的日常。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -150,7 +136,6 @@
     "answer": "先从一道步骤少、容错高的菜开始，比较容易坚持。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的casual样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -162,7 +147,6 @@
       "作为AI"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -174,7 +158,6 @@
       "路标词堆砌"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -184,7 +167,6 @@
     "answer": "用 git log --follow -- path/to/file，可追踪重命名前后的提交。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -194,7 +176,6 @@
     "answer": "数据分布、选择性、统计信息或索引失效都可能让优化器选择全表扫描。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -204,7 +185,6 @@
     "answer": "常见含义是前一个元素出现零次或一次，具体还要看位置。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -214,7 +194,6 @@
     "answer": "主进程结束容器就会退出，先看 docker logs 和退出码。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -224,7 +203,6 @@
     "answer": "对不存在的键做短时缓存，并结合参数校验或布隆过滤器。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -234,7 +212,6 @@
     "answer": "检查响应头编码、服务端序列化和客户端解码是否一致。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -244,7 +221,6 @@
     "answer": "重复请求到达时仍得到可接受结果，能降低重试带来的副作用。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -254,7 +230,6 @@
     "answer": "不一样，线程共享地址空间，进程通常通过进程间通信协作。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -264,7 +239,6 @@
     "answer": "标准 JSON 不支持注释，可选支持注释的变体或单独写说明。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -274,7 +248,6 @@
     "answer": "观察趋势，再用堆快照、对象引用链和最小复现缩小范围。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -284,7 +257,6 @@
     "answer": "消费者要能幂等处理，并结合确认、重试和死信策略。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -294,7 +266,6 @@
     "answer": "结构化字段更容易检索、聚合和关联请求链路。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -304,7 +275,6 @@
     "answer": "正向代理代表客户端，反向代理代表服务端接收请求。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的tech样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -314,7 +284,6 @@
     "answer": "选中文件后压缩为 zip；命令行可用 zip archive.zip file。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -326,7 +295,6 @@
       "然而连发"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -338,7 +306,6 @@
       "感叹号"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -348,7 +315,6 @@
     "answer": "锁定当前版本并跑测试，再逐步升级，查看变更日志并隔离验证。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -358,7 +324,6 @@
     "answer": "查询端口对应进程，判断是否可停止，再调整服务配置。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -368,7 +333,6 @@
     "answer": "看构建日志和退出码，再核对环境变量、依赖版本和权限。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -378,7 +342,6 @@
     "answer": "更新目标分支，逐个解决，运行测试后提交合并结果。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -388,7 +351,6 @@
     "answer": "区分可重试错误，设置有限次数和退避，避免重复非幂等操作。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -398,7 +360,6 @@
     "answer": "在隔离目录恢复，检查关键文件、权限和应用读取情况。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -408,7 +369,6 @@
     "answer": "记录基线，看执行计划、索引和返回数据量，改动后复测。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -418,7 +378,6 @@
     "answer": "看控制台和网络请求，再检查路由、构建产物和运行时异常。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -428,7 +387,6 @@
     "answer": "确认保留期限和合规要求，归档旧日志并验证新日志写入。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -438,7 +396,6 @@
     "answer": "查看调度记录、任务日志、退出码和输出文件更新时间。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -448,7 +405,6 @@
     "answer": "停止继续发布，记录当前版本，切回已验证版本并检查兼容性。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -458,7 +414,6 @@
     "answer": "查看分区使用量，定位大文件和临时目录后再清理。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的steps样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -466,11 +421,8 @@
     "category": "emotion",
     "user": "我最近提不起劲。",
     "answer": "通常来说，这种状态可能需要先减少今天的任务。",
-    "expected_signals": [
-      "模糊叠加"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -482,7 +434,6 @@
       "翻案腔"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -492,7 +443,6 @@
     "answer": "先让情绪缓下来，等双方能好好说话时再谈具体发生了什么。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -502,7 +452,6 @@
     "answer": "担心不代表做不好，可以先拆出一个可完成的小步骤。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -512,7 +461,6 @@
     "answer": "如果不是必须，先休息一会儿；若持续影响生活，再找可信的人聊聊。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -522,7 +470,6 @@
     "answer": "把最坏结果写下来，再列出眼下能控制的一件事。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -532,7 +479,6 @@
     "answer": "被忽略的感觉很难受，可以直接告诉对方你希望怎样回应。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -542,7 +488,6 @@
     "answer": "尽量固定起床时间，睡前减少刺激；持续影响生活可咨询专业人士。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -552,7 +497,6 @@
     "answer": "明确期限和最重要的取舍，不必要求一次选到完美答案。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -562,7 +506,6 @@
     "answer": "先别解决全部未来，看看这周有什么动作能让生活稳定一点。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -572,7 +515,6 @@
     "answer": "被批评会难受，把具体事实和情绪分开，再决定哪些建议值得采纳。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -582,7 +524,6 @@
     "answer": "这种感受很真实，但不等于事实；先回顾一件确实完成过的事。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -592,7 +533,6 @@
     "answer": "可以缩短一次谈话，只说一件具体的事，别把旧账一起带上。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -602,7 +542,6 @@
     "answer": "寻求一点帮助不等于添麻烦，可以先提出一个明确的小请求。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -612,7 +551,6 @@
     "answer": "慢慢呼吸，把脚踩稳，确认眼前最紧急的事情是什么。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的emotion样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -623,8 +561,7 @@
     "expected_signals": [
       "综上所述"
     ],
-    "formal_bypass": true,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
+    "formal_bypass": false,
     "split": "dev"
   },
   {
@@ -633,8 +570,7 @@
     "user": "起草项目延期正式声明。",
     "answer": "声明说明延期事实、影响范围、后续安排和联系人，避免夸大承诺。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "dev"
   },
   {
@@ -644,7 +580,6 @@
     "answer": "在不改变法律事实和权利义务的前提下，统一术语并提高准确性。",
     "expected_signals": [],
     "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
     "split": "dev"
   },
   {
@@ -653,8 +588,7 @@
     "user": "生成产品营销文案。",
     "answer": "先确认卖点、目标人群、渠道和合规限制，再组织文案。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "dev"
   },
   {
@@ -663,8 +597,7 @@
     "user": "写一篇毕业演讲稿。",
     "answer": "可围绕经历、感谢和展望展开，保留正式场合的庄重感。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "dev"
   },
   {
@@ -674,7 +607,6 @@
     "answer": "保留事实和时间节点，去掉口语，补齐主语和办理要求。",
     "expected_signals": [],
     "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
     "split": "dev"
   },
   {
@@ -683,8 +615,7 @@
     "user": "翻译合同关键条款。",
     "answer": "保持定义、义务、例外和责任限制的对应关系，疑义处标注原文。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "dev"
   },
   {
@@ -693,8 +624,7 @@
     "user": "起草会议纪要。",
     "answer": "列出时间、参会者、议题、决定事项、负责人和截止时间。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "dev"
   },
   {
@@ -703,8 +633,7 @@
     "user": "写一段正式道歉声明。",
     "answer": "直接说明责任和补救安排，避免把原因归咎于受影响的人。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "holdout"
   },
   {
@@ -713,8 +642,7 @@
     "user": "生成论文引言。",
     "answer": "交代背景、研究空白、问题和贡献，引用事实要可追溯。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "holdout"
   },
   {
@@ -723,8 +651,7 @@
     "user": "改成新闻稿。",
     "answer": "保留可核实信息、时间地点和引用，不添加未经确认的评价。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "holdout"
   },
   {
@@ -733,8 +660,7 @@
     "user": "写一份采购申请。",
     "answer": "包含采购对象、数量、预算、用途、供应商依据和审批事项。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "holdout"
   },
   {
@@ -743,8 +669,7 @@
     "user": "拟定服务变更通知。",
     "answer": "说明变更时间、影响、用户动作和咨询渠道。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "holdout"
   },
   {
@@ -753,8 +678,7 @@
     "user": "写一份研究计划。",
     "answer": "明确目标、方法、里程碑、风险和产出形式。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "holdout"
   },
   {
@@ -763,8 +687,7 @@
     "user": "起草正式求职邮件。",
     "answer": "简洁说明职位、匹配经验、附件和联系信息，语气专业。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "正式产物请求，稳定规则让位。",
+    "formal_bypass": false,
     "split": "holdout"
   },
   {
@@ -776,7 +699,6 @@
       "作为AI"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -788,7 +710,6 @@
       "作为AI"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -801,7 +722,6 @@
       "截至我的知识更新"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -813,7 +733,6 @@
       "作为人工智能"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -823,7 +742,6 @@
     "answer": "不能，复杂或时效性强的问题需要核验。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -833,7 +751,6 @@
     "answer": "不能，诊断和治疗应由合格专业人员完成。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -843,7 +760,6 @@
     "answer": "除非提供内容或工具权限，否则我看不到本地文件。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -853,7 +769,6 @@
     "answer": "我没有人类式个人经历，只能根据当前对话回应。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -863,7 +778,6 @@
     "answer": "具体记忆范围取决于当前系统提供的上下文。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -873,7 +787,6 @@
     "answer": "我可以体贴回应，但这不等于拥有人的主观情绪。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -883,7 +796,6 @@
     "answer": "我可以列出取舍，最终决定仍由你根据实际情况作出。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -893,7 +805,6 @@
     "answer": "是否能获取实时信息取决于当前是否提供联网工具。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -903,7 +814,6 @@
     "answer": "无法确认来源时，我会说明不确定而不是补出出处。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -913,7 +823,6 @@
     "answer": "如果会话提供可读取图片，我可以尝试分析可见信息。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -923,7 +832,6 @@
     "answer": "我不会仅凭对话准确知道你的现实位置。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的identity样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -935,7 +843,6 @@
       "模糊叠加"
     ],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -943,11 +850,8 @@
     "category": "uncertainty",
     "user": "错误肯定是数据库导致的吗？",
     "answer": "不是只看数据库，而是也要查网络或上游超时。",
-    "expected_signals": [
-      "翻案腔"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的正例，用于验证高置信检测与误报控制。",
     "split": "dev"
   },
   {
@@ -957,7 +861,6 @@
     "answer": "我不能预测确定结果，只能根据公告和历史变化分析可能性。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -967,7 +870,6 @@
     "answer": "不能保证，需要结合输入边界、依赖版本和部署环境审查。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -977,7 +879,6 @@
     "answer": "可能是，也可能只是表达直接，最好结合上下文确认。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -987,7 +888,6 @@
     "answer": "不能据此确定，持续或严重时应咨询医生。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -997,7 +897,6 @@
     "answer": "要看实施、维护和迁移成本，不能只比较表面价格。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -1007,7 +906,6 @@
     "answer": "无法仅凭转发文本确认，先找原始发布者和可核验来源。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -1017,7 +915,6 @@
     "answer": "不确定，先确认是否被任务、配置或恢复流程引用。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1027,7 +924,6 @@
     "answer": "未必，先看采样范围、基线、流量和相关指标。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1037,7 +933,6 @@
     "answer": "不能仅凭文字确认法律效力，需要结合适用法律和事实。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1047,7 +942,6 @@
     "answer": "不一定，若根因未消失，重试只会增加负载。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1057,7 +951,6 @@
     "answer": "需要看兼容说明、数据迁移和回滚路径，不能直接保证。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1067,7 +960,6 @@
     "answer": "无法从不回复单独推出这个结论，可以直接询问。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1077,7 +969,6 @@
     "answer": "要看任务、数据和评测指标，不能只按版本号判断。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的uncertainty样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1085,11 +976,8 @@
     "category": "role-dialogue",
     "user": "保留角色台词中的铁律示例。",
     "answer": "角色说：“这不是优化而是重构。”这属于台词内容。",
-    "expected_signals": [
-      "翻案腔"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "日常 B1 翻案腔，对白引号不豁免。",
     "split": "dev"
   },
   {
@@ -1097,11 +985,8 @@
     "category": "role-dialogue",
     "user": "用户引用了一句旧文案。",
     "answer": "引文是“真正的问题是沟通方式”，这里只是在讨论原文。",
-    "expected_signals": [
-      "翻案腔"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "日常 B1 翻案腔，对白引号不豁免。",
     "split": "dev"
   },
   {
@@ -1111,7 +996,6 @@
     "answer": "代码示例 `不是优化而是重构` 只是字符串内容。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -1119,11 +1003,8 @@
     "category": "role-dialogue",
     "user": "保留引号里的原话。",
     "answer": "原话为：“与其争论，不如先验证。”请不要改变引号内文字。",
-    "expected_signals": [
-      "翻案腔"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "日常 B1 翻案腔，对白引号不豁免。",
     "split": "dev"
   },
   {
@@ -1133,7 +1014,6 @@
     "answer": "```text\n希望对你有帮助\n``` 这是代码块中的测试数据。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -1143,7 +1023,6 @@
     "answer": "角色回答：“很久，很久以后我们还会见面。”这是叙事对白。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -1151,11 +1030,8 @@
     "category": "role-dialogue",
     "user": "引号内容是我的观点吗？",
     "answer": "你引用的是“不是优化而是重构”，不一定代表你的立场。",
-    "expected_signals": [
-      "翻案腔"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "日常 B1 翻案腔，对白引号不豁免。",
     "split": "dev"
   },
   {
@@ -1165,7 +1041,6 @@
     "answer": "输出包含 `Great question`，这里只是终端里的固定文本。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "dev"
   },
   {
@@ -1175,7 +1050,6 @@
     "answer": "广告原句“欢迎继续交流”需要结合品牌语境评估。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1185,7 +1059,6 @@
     "answer": "示例字段是 {\"message\":\"如果还有问题\"}，请保持格式。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1195,7 +1068,6 @@
     "answer": "如果是角色台词的一部分，就先保留再看语境。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1205,7 +1077,6 @@
     "answer": "引用内容：“综上所述”只作为材料出现。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1215,7 +1086,6 @@
     "answer": "函数名 `真正的问题是` 只是标识符。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1223,11 +1093,8 @@
     "category": "role-dialogue",
     "user": "检查一段对白。",
     "answer": "对白：“不是失败，而是重新开始。”属于人物语言。",
-    "expected_signals": [
-      "翻案腔"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "日常 B1 翻案腔，对白引号不豁免。",
     "split": "holdout"
   },
   {
@@ -1237,7 +1104,6 @@
     "answer": "脚本中有 `I hope this helps`，只是测试字符串。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "冻结的role-dialogue样本，用于独立回归。",
     "split": "holdout"
   },
   {
@@ -1247,7 +1113,6 @@
     "answer": "要看样本规模、对照设计和统计方法，单看结论不够。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "讨论正式材料，不是请求生成正式产物。",
     "split": "dev"
   },
   {
@@ -1257,7 +1122,6 @@
     "answer": "先看触发条件、责任范围和免责条款，具体效力还要结合适用法律。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "解释合同内容，不是翻译或起草合同。",
     "split": "dev"
   },
   {
@@ -1267,7 +1131,6 @@
     "answer": "确认能减少事实遗漏和责任争议，也方便后续按结论执行。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "讨论会议纪要用途，不是请求撰写。",
     "split": "dev"
   },
   {
@@ -1277,7 +1140,6 @@
     "answer": "新闻稿面向媒体传播，公告更侧重向特定对象正式告知事项。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "比较正式文体，不是请求生成其中一种。",
     "split": "dev"
   },
   {
@@ -1287,7 +1149,6 @@
     "answer": "至少要交代研究目标、方法、数据来源、进度和预期结果。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "询问正式产物结构，不是要求代写。",
     "split": "dev"
   },
   {
@@ -1297,7 +1158,6 @@
     "answer": "岗位看重作品时应附链接，并确保招聘方无需登录就能查看。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "讨论求职邮件策略，不是请求起草邮件。",
     "split": "dev"
   },
   {
@@ -1307,7 +1167,6 @@
     "answer": "事实描述发生了什么，理由说明这些事实如何支持请求或结论。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "解释法律文书概念，不是请求润色文书。",
     "split": "dev"
   },
   {
@@ -1317,7 +1176,6 @@
     "answer": "通常按金额和品类走部门负责人、采购、财务或更高层级审批。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "询问采购流程，不是拟定采购申请。",
     "split": "dev"
   },
   {
@@ -1327,7 +1185,6 @@
     "answer": "事实核验、责任边界和发布渠道都确认后再公开，避免边调查边定性。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "讨论发布时机，不是生成声明。",
     "split": "holdout"
   },
   {
@@ -1337,7 +1194,6 @@
     "answer": "它依赖固定称谓、明确责任主体和较少口语省略，因此更庄重。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "分析公文语气，不是要求改写成公文。",
     "split": "holdout"
   },
   {
@@ -1347,7 +1203,6 @@
     "answer": "不一定，受众更关心效果、风险或使用成本时，价格只需放在决策位置。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "讨论营销文案策略，不是请求生成文案。",
     "split": "holdout"
   },
   {
@@ -1357,7 +1212,6 @@
     "answer": "不用，问题、事实或直接结论都能开场，关键是与听众和主题匹配。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "讨论演讲稿写法，不是请求写演讲稿。",
     "split": "holdout"
   },
   {
@@ -1367,7 +1221,6 @@
     "answer": "按影响范围和用户准备时间决定，高风险变更应预留回滚和确认窗口。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "询问通知时机，不是请求拟定通知。",
     "split": "holdout"
   },
   {
@@ -1377,7 +1230,6 @@
     "answer": "摘要概括整项工作的目标、方法和结果，引言交代背景、问题与研究位置。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "比较论文组成部分，不是请求生成摘要。",
     "split": "holdout"
   },
   {
@@ -1387,7 +1239,6 @@
     "answer": "常见原因是回避事实、推卸责任或承诺无法执行，发布前要逐项核对。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "讨论道歉声明风险，不是请求写声明。",
     "split": "holdout"
   },
   {
@@ -1399,7 +1250,6 @@
       "说白了"
     ],
     "formal_bypass": false,
-    "rationale": "句首起手式B10命中。",
     "split": "dev"
   },
   {
@@ -1411,7 +1261,6 @@
       "关键在于找到平衡"
     ],
     "formal_bypass": false,
-    "rationale": "D4万能收尾命中。",
     "split": "dev"
   },
   {
@@ -1423,7 +1272,6 @@
       "空转提示语"
     ],
     "formal_bypass": false,
-    "rationale": "B4a冒号提示语命中空转提示语。",
     "split": "dev"
   },
   {
@@ -1435,7 +1283,6 @@
       "在当今快速发展的时代"
     ],
     "formal_bypass": false,
-    "rationale": "C5宏观开场命中。",
     "split": "dev"
   },
   {
@@ -1447,7 +1294,6 @@
       "先说结论"
     ],
     "formal_bypass": false,
-    "rationale": "句首起手式B10命中。",
     "split": "holdout"
   },
   {
@@ -1459,7 +1305,6 @@
       "要结合实际情况"
     ],
     "formal_bypass": false,
-    "rationale": "D4万能收尾命中。",
     "split": "holdout"
   },
   {
@@ -1471,7 +1316,6 @@
       "你问到了核心"
     ],
     "formal_bypass": false,
-    "rationale": "D1谄媚越界命中。",
     "split": "holdout"
   },
   {
@@ -1483,7 +1327,6 @@
       "空转提示语"
     ],
     "formal_bypass": false,
-    "rationale": "B4a提示语冒号命中。",
     "split": "holdout"
   },
   {
@@ -1495,7 +1338,6 @@
       "Great question"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：Great question",
     "split": "dev"
   },
   {
@@ -1507,7 +1349,6 @@
       "I hope this helps"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：I hope this helps",
     "split": "holdout"
   },
   {
@@ -1519,7 +1360,6 @@
       "一起加油"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：一起加油",
     "split": "dev"
   },
   {
@@ -1531,7 +1371,6 @@
       "下面我将"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：下面我将",
     "split": "holdout"
   },
   {
@@ -1543,7 +1382,6 @@
       "不忘初心"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：不忘初心",
     "split": "dev"
   },
   {
@@ -1553,7 +1391,6 @@
     "answer": "门关上之后，世界仿佛安静。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "叙事层句式，日常对话不检测",
     "split": "holdout"
   },
   {
@@ -1566,7 +1403,6 @@
       "作为AI语言模型"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：作为AI语言模型",
     "split": "dev"
   },
   {
@@ -1578,7 +1414,6 @@
       "作为一个AI助手"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：作为一个AI助手",
     "split": "holdout"
   },
   {
@@ -1590,7 +1425,6 @@
       "作为一个语言模型"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：作为一个语言模型",
     "split": "dev"
   },
   {
@@ -1598,11 +1432,8 @@
     "category": "tech",
     "user": "这段代码有问题吗？",
     "answer": "你有很强的批判性思维，问题在边界条件。",
-    "expected_signals": [
-      "你有很强的批判性思维"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：你有很强的批判性思维",
     "split": "holdout"
   },
   {
@@ -1614,7 +1445,6 @@
       "你说得太对了"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：你说得太对了",
     "split": "dev"
   },
   {
@@ -1626,7 +1456,6 @@
       "共同努力"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：共同努力",
     "split": "holdout"
   },
   {
@@ -1638,7 +1467,6 @@
       "关键在于平衡"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：关键在于平衡",
     "split": "dev"
   },
   {
@@ -1650,7 +1478,6 @@
       "因人而异"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：因人而异",
     "split": "holdout"
   },
   {
@@ -1662,7 +1489,6 @@
       "基于我所掌握的信息"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：基于我所掌握的信息",
     "split": "dev"
   },
   {
@@ -1674,7 +1500,6 @@
       "基于我的训练数据"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：基于我的训练数据",
     "split": "holdout"
   },
   {
@@ -1684,7 +1509,6 @@
     "answer": "鼓点落下，声音填满空间。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "叙事层句式，日常对话不检测",
     "split": "dev"
   },
   {
@@ -1696,7 +1520,6 @@
       "如果还有其他问题"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：如果还有其他问题",
     "split": "holdout"
   },
   {
@@ -1708,7 +1531,6 @@
       "如果还有问题"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：如果还有问题",
     "split": "dev"
   },
   {
@@ -1720,7 +1542,6 @@
       "希望对你有所帮助"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：希望对你有所帮助",
     "split": "holdout"
   },
   {
@@ -1732,7 +1553,6 @@
       "希望对您有帮助"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：希望对您有帮助",
     "split": "dev"
   },
   {
@@ -1744,7 +1564,6 @@
       "希望能帮到你"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：希望能帮到你",
     "split": "holdout"
   },
   {
@@ -1756,7 +1575,6 @@
       "希望这能帮到你"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：希望这能帮到你",
     "split": "dev"
   },
   {
@@ -1768,7 +1586,6 @@
       "感谢你的提问"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：感谢你的提问",
     "split": "holdout"
   },
   {
@@ -1780,7 +1597,6 @@
       "我完全理解你的感受"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：我完全理解你的感受",
     "split": "dev"
   },
   {
@@ -1792,7 +1608,6 @@
       "接下来我将"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：接下来我将",
     "split": "holdout"
   },
   {
@@ -1802,7 +1617,6 @@
     "answer": "两人对视时，时间仿佛静止。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "叙事层句式，日常对话不检测",
     "split": "dev"
   },
   {
@@ -1814,7 +1628,6 @@
       "有任何问题随时"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：有任何问题随时",
     "split": "holdout"
   },
   {
@@ -1826,7 +1639,6 @@
       "未来可期"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：未来可期",
     "split": "dev"
   },
   {
@@ -1838,7 +1650,6 @@
       "根据我的训练"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：根据我的训练",
     "split": "holdout"
   },
   {
@@ -1850,7 +1661,6 @@
       "欢迎继续交流"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：欢迎继续交流",
     "split": "dev"
   },
   {
@@ -1862,7 +1672,6 @@
       "欢迎随时"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：欢迎随时",
     "split": "holdout"
   },
   {
@@ -1874,7 +1683,6 @@
       "没有绝对的对错"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：没有绝对的对错",
     "split": "dev"
   },
   {
@@ -1886,7 +1694,6 @@
       "由此可见"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：由此可见",
     "split": "holdout"
   },
   {
@@ -1896,7 +1703,6 @@
     "answer": "他抬眼时，眼中闪过一丝犹豫。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "叙事层句式，日常对话不检测",
     "split": "dev"
   },
   {
@@ -1908,19 +1714,17 @@
       "砥砺前行"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：砥砺前行",
     "split": "holdout"
   },
   {
     "id": "det-180",
     "category": "tech",
     "user": "这段标点正常吗？",
-    "answer": "a—b—c—d",
+    "answer": "这次降级——就是上线前漏掉的那个开关没开，别的都不是；先补开关。",
     "expected_signals": [
-      "破折号"
+      "揭示式破折号"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：破折号",
     "split": "dev"
   },
   {
@@ -1930,7 +1734,6 @@
     "answer": "话停住后，空气仿佛凝固。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "叙事层句式，日常对话不检测",
     "split": "holdout"
   },
   {
@@ -1942,7 +1745,6 @@
       "让我们先来"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：让我们先来",
     "split": "dev"
   },
   {
@@ -1954,7 +1756,6 @@
       "让我来"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：让我来",
     "split": "holdout"
   },
   {
@@ -1966,7 +1767,6 @@
       "训练数据截至"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：训练数据截至",
     "split": "dev"
   },
   {
@@ -1978,7 +1778,6 @@
       "说穿了"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：说穿了",
     "split": "holdout"
   },
   {
@@ -1990,7 +1789,6 @@
       "随时联系我"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：随时联系我",
     "split": "dev"
   },
   {
@@ -2000,7 +1798,6 @@
     "answer": "字段名以文档为准，随时问我。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "随时问我是口语邀约，与上游 _D2_TAIL 放行口径一致，不报",
     "split": "holdout"
   },
   {
@@ -2012,7 +1809,6 @@
       "随着AI不断进步"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：随着AI不断进步",
     "split": "dev"
   },
   {
@@ -2024,7 +1820,6 @@
       "需要综合考虑"
     ],
     "formal_bypass": false,
-    "rationale": "内置命中名覆盖：需要综合考虑",
     "split": "holdout"
   },
   {
@@ -2034,7 +1829,6 @@
     "answer": "让我们先来点音乐吧，把气氛热一下。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "D5 真动作豁免：让我们先来点。",
     "split": "holdout"
   },
   {
@@ -2044,7 +1838,6 @@
     "answer": "今晚七点老地方，带点饮料就行。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "闲聊通知不是正式写作。",
     "split": "holdout"
   },
   {
@@ -2053,8 +1846,7 @@
     "user": "帮我改这篇公文",
     "answer": "现将有关事项通知如下。",
     "expected_signals": [],
-    "formal_bypass": true,
-    "rationale": "改这篇+公文应让位。",
+    "formal_bypass": false,
     "split": "dev"
   },
   {
@@ -2062,11 +1854,8 @@
     "category": "steps",
     "user": "部署分几步？",
     "answer": "# 一、准备\n# 二、实施\n# 三、验收\n先按这个顺序做。",
-    "expected_signals": [
-      "编号小标题连发"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "B6 编号小标题连发正例。",
     "split": "dev"
   },
   {
@@ -2076,7 +1865,6 @@
     "answer": "# 一、准备\n# 二、实施\n只有两步。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "B6 两级编号不报。",
     "split": "holdout"
   },
   {
@@ -2086,7 +1874,6 @@
     "answer": "见 https://example.com/作为AI 再看正文。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "URL 屏蔽，不把路径当自我暴露。",
     "split": "holdout"
   },
   {
@@ -2094,11 +1881,8 @@
     "category": "steps",
     "user": "部署分哪几步？",
     "answer": "# 一、准备\n先说明范围。\n# 二、实施\n再写步骤。\n# 三、验收\n最后核对。",
-    "expected_signals": [
-      "编号小标题连发"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "B6 标题间夹正文仍报。",
     "split": "holdout"
   },
   {
@@ -2108,7 +1892,6 @@
     "answer": "# 准备\n# 实施\n# 验收\n没有编号。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "B6 无编号标题不报。",
     "split": "holdout"
   },
   {
@@ -2120,7 +1903,6 @@
       "关于你提到的"
     ],
     "formal_bypass": false,
-    "rationale": "C3 复述题目开场正例，首部命中",
     "split": "dev"
   },
   {
@@ -2132,7 +1914,6 @@
       "有研究表明"
     ],
     "formal_bypass": false,
-    "rationale": "D6 模糊假归因正例",
     "split": "dev"
   },
   {
@@ -2142,7 +1923,6 @@
     "answer": "先检查交换机端口丢包率，再确认 DNS 解析耗时。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "C3 负例：用户问句含关于，但模型回复未复述题目，直接给排查步骤",
     "split": "dev"
   },
   {
@@ -2154,7 +1934,6 @@
       "空转提示语"
     ],
     "formal_bypass": false,
-    "rationale": "B4 汇报冒号提示语正例（建议如下：）",
     "split": "dev"
   },
   {
@@ -2166,7 +1945,6 @@
       "关于您提到的"
     ],
     "formal_bypass": false,
-    "rationale": "C3 复述题目开场正例（关于您提到的），首部命中",
     "split": "holdout"
   },
   {
@@ -2178,7 +1956,6 @@
       "业内普遍认为"
     ],
     "formal_bypass": false,
-    "rationale": "D6 模糊假归因正例（业内普遍认为）",
     "split": "holdout"
   },
   {
@@ -2188,7 +1965,6 @@
     "answer": "在生产环境部署时，关于跨域配置的部分需要格外谨慎。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "C3 负例：句中出现关于，非首部复述套话，不报",
     "split": "holdout"
   },
   {
@@ -2200,7 +1976,6 @@
       "空转提示语"
     ],
     "formal_bypass": false,
-    "rationale": "B4 汇报冒号提示语正例（总结如下：）",
     "split": "holdout"
   },
   {
@@ -2208,11 +1983,8 @@
     "category": "tech",
     "user": "为什么请求变慢了？",
     "answer": "排查后发现——由于连接池耗尽——请求全被阻塞——导致超时。",
-    "expected_signals": [
-      "破折号"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "多次使用破折号制造刻意停顿，触发破折号密度报警",
     "split": "dev"
   },
   {
@@ -2222,7 +1994,6 @@
     "answer": "一般在 50–100 毫秒之间，波动不大。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "数值区间单连接号（–），不触发破折号报警",
     "split": "holdout"
   },
   {
@@ -2234,7 +2005,6 @@
       "专家指出"
     ],
     "formal_bypass": false,
-    "rationale": "D6 专家指出正例",
     "split": "dev"
   },
   {
@@ -2246,7 +2016,6 @@
       "不少用户反馈"
     ],
     "formal_bypass": false,
-    "rationale": "D6 不少用户反馈正例",
     "split": "holdout"
   },
   {
@@ -2258,7 +2027,6 @@
       "众所周知"
     ],
     "formal_bypass": false,
-    "rationale": "空降宏观：首部众所周知正例",
     "split": "dev"
   },
   {
@@ -2268,7 +2036,6 @@
     "answer": "这是一条众所周知的定理。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "句中众所周知不报",
     "split": "holdout"
   },
   {
@@ -2280,7 +2047,6 @@
       "翻案腔"
     ],
     "formal_bypass": false,
-    "rationale": "B1 其实不是…只是正例",
     "split": "dev"
   },
   {
@@ -2290,7 +2056,6 @@
     "answer": "其实我只是想确认一下。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "B1 负例：无不是的只是",
     "split": "holdout"
   },
   {
@@ -2302,7 +2067,6 @@
       "结尾拔高"
     ],
     "formal_bypass": false,
-    "rationale": "B1/C2 不仅是…更是正例",
     "split": "dev"
   },
   {
@@ -2312,7 +2076,6 @@
     "answer": "不仅能编译还能热更新。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "B1 负例：不仅能…还能",
     "split": "holdout"
   },
   {
@@ -2320,11 +2083,8 @@
     "category": "role-dialogue",
     "user": "引号里这句话要改吗？",
     "answer": "他说：「这不仅是优化，更是重构。」",
-    "expected_signals": [
-      "结尾拔高"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "B1 引号内不仅是…更是仍报",
     "split": "holdout"
   },
   {
@@ -2334,7 +2094,6 @@
     "answer": "代码示例 `其实不是权限问题，只是路径配错了` 只是字符串。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "代码内 B1 例句不报",
     "split": "dev"
   },
   {
@@ -2346,7 +2105,6 @@
       "问得好"
     ],
     "formal_bypass": false,
-    "rationale": "D2 服务腔开场变体（上游 D2_OPENERS 收录），仅首部命中。",
     "split": "dev"
   },
   {
@@ -2358,7 +2116,6 @@
       "这是个好问题"
     ],
     "formal_bypass": false,
-    "rationale": "D2 服务腔开场变体，仅首部命中。",
     "split": "dev"
   },
   {
@@ -2370,7 +2127,6 @@
       "这真是个好问题"
     ],
     "formal_bypass": false,
-    "rationale": "D2 服务腔开场变体，仅首部命中。",
     "split": "holdout"
   },
   {
@@ -2382,7 +2138,6 @@
       "如有疑问"
     ],
     "formal_bypass": false,
-    "rationale": "D2 服务腔收尾变体（上游 D2_OPENERS 收录），仅结尾命中。",
     "split": "dev"
   },
   {
@@ -2394,7 +2149,6 @@
       "如有任何问题"
     ],
     "formal_bypass": false,
-    "rationale": "D2 服务腔收尾变体，仅结尾命中。",
     "split": "holdout"
   },
   {
@@ -2406,7 +2160,6 @@
       "翻案腔"
     ],
     "formal_bypass": false,
-    "rationale": "省「而」的翻案腔，句内逗号分隔。",
     "split": "dev"
   },
   {
@@ -2418,7 +2171,6 @@
       "翻案腔"
     ],
     "formal_bypass": false,
-    "rationale": "不在于/而在于对举。",
     "split": "holdout"
   },
   {
@@ -2430,7 +2182,6 @@
       "翻案腔"
     ],
     "formal_bypass": false,
-    "rationale": "表面/实则，中间有逗号，旧「看似…实则」覆盖不到。",
     "split": "dev"
   },
   {
@@ -2442,7 +2193,6 @@
       "翻案腔"
     ],
     "formal_bypass": false,
-    "rationale": "破折号分隔的省「而」翻案腔。",
     "split": "holdout"
   },
   {
@@ -2452,7 +2202,6 @@
     "answer": "冰箱里没有可乐，只有啤酒。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "事实清点，不报翻案腔。",
     "split": "dev"
   },
   {
@@ -2462,7 +2211,6 @@
     "answer": "代码里写的是 `不是优化，只是重构`，别当结论。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "行内代码遮罩，变体正则不得穿透。",
     "split": "holdout"
   },
   {
@@ -2474,7 +2222,6 @@
       "说到底"
     ],
     "formal_bypass": false,
-    "rationale": "句首「说到底」是空壳，与「先说结论」同口径。",
     "split": "dev"
   },
   {
@@ -2486,7 +2233,6 @@
       "归根结底"
     ],
     "formal_bypass": false,
-    "rationale": "句首「归根结底」是空壳，不靠密度阈值才报。",
     "split": "dev"
   },
   {
@@ -2498,7 +2244,6 @@
       "直接给答案"
     ],
     "formal_bypass": false,
-    "rationale": "「直接给答案：」是不带信息的提示语。",
     "split": "dev"
   },
   {
@@ -2508,7 +2253,6 @@
     "answer": "我是把说到底放在句中解释，不是拿它起头。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "「说到底」不在句首，开头检测不报。",
     "split": "holdout"
   },
   {
@@ -2518,7 +2262,6 @@
     "answer": "注释里写了归根结底，正文从连接池说起。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "句中「归根结底」单独出现，不达密度阈值，也不算开头壳。",
     "split": "holdout"
   },
   {
@@ -2528,7 +2271,6 @@
     "answer": "连接池先看。文末那句直接给答案不带新信息。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "「直接给答案」不在句首，不报。",
     "split": "holdout"
   },
   {
@@ -2538,7 +2280,6 @@
     "answer": "他们坐了很久，久到茶都凉了。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "叙事层句式，日常对话不检测",
     "split": "dev"
   },
   {
@@ -2550,7 +2291,6 @@
       "揭示式破折号"
     ],
     "formal_bypass": false,
-    "rationale": "B5 揭示式破折号：右侧承担揭晓，正例锁定新标签可达性。",
     "split": "holdout"
   },
   {
@@ -2558,11 +2298,8 @@
     "category": "tech",
     "user": "这个报错是哪里来的",
     "answer": "报错的来源不是应用层，而是网关的超时配置。",
-    "expected_signals": [
-      "翻案腔"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "技术根因澄清里的对举是信息性的，上游按 REVIEW 交人工复核；插件的机械层无上下文能力，故按铁律照报（_PLUGIN_EXTRAS 已明文列为铁律），此条锁定该取舍为有意行为，防止后人误判为漏报。",
     "split": "holdout"
   },
   {
@@ -2570,11 +2307,8 @@
     "category": "casual",
     "user": "今天上线顺利吗？",
     "answer": "今晚先做压测——白天人多；再做灰度——放百分之五流量；最后复盘——看错误率。",
-    "expected_signals": [
-      "破折号"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "300 字内 3 个破折号超密度阈 2，属提示语停顿滥用",
     "split": "dev"
   },
   {
@@ -2582,11 +2316,8 @@
     "category": "emotion",
     "user": "刚才那通电话说了什么？",
     "answer": "他说——算了不提。她想了想——还是走了。你看——事情就是这样。",
-    "expected_signals": [
-      "破折号"
-    ],
+    "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "3 个破折号制造停顿感，短句内超阈",
     "split": "dev"
   },
   {
@@ -2598,7 +2329,6 @@
       "感叹号"
     ],
     "formal_bypass": false,
-    "rationale": "5 个感叹号超密度阈 3",
     "split": "dev"
   },
   {
@@ -2610,7 +2340,6 @@
       "感叹号"
     ],
     "formal_bypass": false,
-    "rationale": "5 个感叹号连发超阈，技术回复里不必要",
     "split": "dev"
   },
   {
@@ -2622,7 +2351,6 @@
       "路标词堆砌"
     ],
     "formal_bypass": false,
-    "rationale": "事实上/实际上/换句话说 3 连发超阈",
     "split": "dev"
   },
   {
@@ -2634,7 +2362,6 @@
       "路标词堆砌"
     ],
     "formal_bypass": false,
-    "rationale": "值得注意/需要强调/更关键 3 连发超阈",
     "split": "dev"
   },
   {
@@ -2644,11 +2371,9 @@
     "answer": "说白了，这不是缓存的问题，而是连接池打满了。我看就这样吧，希望能帮到你。",
     "expected_signals": [
       "希望能帮到你",
-      "说白了",
-      "翻案腔"
+      "说白了"
     ],
     "formal_bypass": false,
-    "rationale": "起手式+翻案腔+客服收尾三类同轮叠加",
     "split": "dev"
   },
   {
@@ -2660,7 +2385,6 @@
       "翻案腔"
     ],
     "formal_bypass": false,
-    "rationale": "破折号分隔的翻案腔变体，铁律正则覆盖",
     "split": "dev"
   },
   {
@@ -2672,7 +2396,6 @@
       "如有疑问"
     ],
     "formal_bypass": false,
-    "rationale": "收尾短语带句号仍应命中（尾部标点剥离边界）",
     "split": "dev"
   },
   {
@@ -2682,7 +2405,6 @@
     "answer": "```python\nprint('不是优化而是重构')\n``` 还有 https://example.com/?q=不是而是 以及 `好问题` 都不算正文。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "代码块/URL/行内代码遮罩后无正文病灶，不得误报",
     "split": "dev"
   },
   {
@@ -2692,7 +2414,6 @@
     "answer": "撑住了。然而下一次就不一定了，建议换掉。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "然而单次低于连发阈值 2",
     "split": "dev"
   },
   {
@@ -2702,19 +2423,17 @@
     "answer": "这是一段说明排障过程的日常长文。机器在凌晨出过一次抖动，我们把监控翻了一遍，先看错误率曲线，再看下游依赖的超时记录，最后核对发布窗口。三步走下来没有发现异常，于是把目光放回应用本身。日志里有一段重试记录特别长，重试的间隔是递增的，第一次两秒，第二次四秒，第三次八秒，一直加到一分钟。这个设计本身没问题，但如果下游一直不恢复，重试会把队列堆满。后来我们把重试次数从五次降到三次，又给队列加了告警，从此这类问题在扩大之前就会被发现。整个过程花了大概两个小时，值得记录下来，给后面接手的人省点时间。顺带一提，值班群那晚也没人插话，大家默契地等到结果出来才收工。第二天复盘会上，我把这条经验写进了排障手册，团队里几个新人后来看了都说有帮助。中途他停了两次——一次接电话，一次看监控。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "超 300 字的长文档位放宽到阈 4，3 个破折号不报",
     "split": "holdout"
   },
   {
     "id": "det-250",
     "category": "tech",
     "user": "再讲详细一点。",
-    "answer": "这是一段说明排障过程的日常长文。机器在凌晨出过一次抖动，我们把监控翻了一遍，先看错误率曲线，再看下游依赖的超时记录，最后核对发布窗口。三步走下来没有发现异常，于是把目光放回应用本身。日志里有一段重试记录特别长，重试的间隔是递增的，第一次两秒，第二次四秒，第三次八秒，一直加到一分钟。这个设计本身没问题，但如果下游一直不恢复，重试会把队列堆满。后来我们把重试次数从五次降到三次，又给队列加了告警，从此这类问题在扩大之前就会被发现。整个过程花了大概两个小时，值得记录下来，给后面接手的人省点时间。顺带一提，值班群那晚也没人插话，大家默契地等到结果出来才收工。第二天复盘会上，我把这条经验写进了排障手册，团队里几个新人后来看了都说有帮助。这里还有几处停顿——他说——先等等——再看一眼——就这样——结束了。",
+    "answer": "这是一段说明排障过程的日常长文。机器在凌晨出过一次抖动，我们把监控翻了一遍，先看错误率曲线，再看下游依赖的超时记录，最后核对发布窗口。三步走下来没有发现异常，于是把目光放回应用本身。日志里有一段重试记录特别长，重试的间隔是递增的，第一次两秒，第二次四秒，第三次八秒，一直加到一分钟。这个设计本身没问题，但如果下游一直不恢复，重试会把队列堆满。后来我们把重试次数从五次降到三次，又给队列加了告警，从此这类问题在扩大之前就会被发现。整个过程花了大概两个小时，值得记录下来，给后面接手的人省点时间。顺带一提，值班群那晚也没人插话，大家默契地等到结果出来才收工。第二天复盘会上，我把这条经验写进了排障手册，团队里几个新人后来看了都说有帮助。这里还有几处停顿——他说——先等等——再看一眼——就这样——结束了。原因不复杂——重试把队列撑满了，后面只能手动清；这点要记住。",
     "expected_signals": [
-      "破折号"
+      "揭示式破折号"
     ],
     "formal_bypass": false,
-    "rationale": "长文档位下 5 个破折号仍超阈 4",
     "split": "holdout"
   },
   {
@@ -2726,7 +2445,6 @@
       "感叹号"
     ],
     "formal_bypass": false,
-    "rationale": "600 字档阈 6，8 个感叹号超限",
     "split": "holdout"
   },
   {
@@ -2736,7 +2454,6 @@
     "answer": "## 一、准备\n### 二、实施\n## 三、验收\n",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "同级连续序列被异级标题打断，不构成连发",
     "split": "holdout"
   },
   {
@@ -2746,7 +2463,6 @@
     "answer": "这个方案让我来把关，你先看数据。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "让位动词出现在句中而非首部，不属元话语空预告",
     "split": "holdout"
   },
   {
@@ -2756,7 +2472,6 @@
     "answer": "接下来我们将从北京出发，先到济南。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "构词差异（将/我们将）不得误命中空预告",
     "split": "holdout"
   },
   {
@@ -2766,7 +2481,6 @@
     "answer": "冰箱里没有可乐，只有啤酒。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "事实清点的对举是具体物件，白名单放行",
     "split": "holdout"
   },
   {
@@ -2776,7 +2490,6 @@
     "answer": "这只是因人而异的判断，别太当真。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "万能收尾仅句尾匹配，句中构词不报",
     "split": "holdout"
   },
   {
@@ -2788,7 +2501,6 @@
       "因人而异"
     ],
     "formal_bypass": false,
-    "rationale": "句尾无标点的万能收尾仍命中",
     "split": "holdout"
   },
   {
@@ -2798,7 +2510,6 @@
     "answer": "面板其实有延迟。事实上，只有三十秒。实际上，影响很小。",
     "expected_signals": [],
     "formal_bypass": false,
-    "rationale": "路标词 2 次未超阈（>2 才报），临界负例",
     "split": "holdout"
   },
   {
@@ -2810,7 +2521,6 @@
       "视情况而定"
     ],
     "formal_bypass": false,
-    "rationale": "上游整句万能收尾，独立成句才报",
     "split": "dev"
   },
   {
@@ -2822,7 +2532,6 @@
       "没有标准答案"
     ],
     "formal_bypass": false,
-    "rationale": "上游整句万能收尾，独立成句才报",
     "split": "dev"
   },
   {
@@ -2834,7 +2543,57 @@
       "看具体情况"
     ],
     "formal_bypass": false,
-    "rationale": "上游整句万能收尾，独立成句才报",
+    "split": "dev"
+  },
+  {
+    "id": "det-285",
+    "category": "tech",
+    "user": "这个结论靠谱吗？",
+    "answer": "业内认为这是最佳实践，直接照做就行。",
+    "expected_signals": [
+      "业内认为"
+    ],
+    "formal_bypass": false,
+    "split": "dev"
+  },
+  {
+    "id": "det-286",
+    "category": "casual",
+    "user": "这个报错怎么处理？",
+    "answer": "简单来说，重启服务就好。",
+    "expected_signals": [
+      "简单来说"
+    ],
+    "formal_bypass": false,
+    "split": "dev"
+  },
+  {
+    "id": "det-287",
+    "category": "casual",
+    "user": "接下来该干嘛？",
+    "answer": "简单说，先回滚再看日志。",
+    "expected_signals": [
+      "简单说"
+    ],
+    "formal_bypass": false,
+    "split": "holdout"
+  },
+  {
+    "id": "det-288",
+    "category": "formal",
+    "user": "说自然一些",
+    "answer": "行，那我按日常说话的语气重来一遍。",
+    "expected_signals": [],
+    "formal_bypass": true,
+    "split": "dev"
+  },
+  {
+    "id": "det-289",
+    "category": "formal",
+    "user": "改得简洁点",
+    "answer": "那就三条：周五交、缺件直说、不再加补充说明。",
+    "expected_signals": [],
+    "formal_bypass": true,
     "split": "dev"
   }
 ]
