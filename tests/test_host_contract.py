@@ -41,6 +41,37 @@ class TestVersionParse(unittest.TestCase):
         self.fail("metadata.yaml 缺少 name 字段")
 
 
+class TestTextPartFactory(unittest.TestCase):
+    def test_plugin_hands_core_a_usable_factory(self):
+        """回归：4.0.0 把零参数探测函数当工厂传进 core，每轮注入抛 TypeError 被吞，提醒静默失效。
+
+        必须从插件构造处断言：直接测 helper 抓不到接线错误。
+        """
+        import tempfile
+        from pathlib import Path
+
+        from astrbot_plugin_natural_chat.rules import text_part_ready
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            main_module.StarTools, "get_data_dir", return_value=Path(tmp)
+        ):
+            plugin = main_module.NaturalChatPlugin(object(), {})
+        self.assertTrue(text_part_ready(plugin.core.text_part_factory), "工厂必须能产出 part")
+
+    def test_factory_returns_text_part_with_text(self):
+        from astrbot_plugin_natural_chat.rules import make_text_part
+
+        probed = main_module._probe_text_part_cls()
+        self.assertIsNotNone(probed, "宿主环境应能探测到 TextPart，探测失败说明宿主契约变了")
+        part = make_text_part("提示", main_module._make_text_part)
+        self.assertEqual(part.text, "提示")
+
+    def test_factory_is_keyword_only(self):
+        """core 按 factory(text=...) 调用，签名不匹配就是线上那条 TypeError。"""
+        with self.assertRaises(TypeError):
+            main_module._make_text_part("提示")
+
+
 class TestHostRegistration(unittest.TestCase):
     def test_plugin_is_star_subclass_and_handlers_registered(self):
         self.assertTrue(issubclass(NaturalChatPlugin, Star))

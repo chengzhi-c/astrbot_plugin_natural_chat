@@ -20,7 +20,8 @@ DEFAULT_RECENT_REPLY_WINDOW: int = 8
 MIN_RECENT_REPLY_WINDOW: int = 3
 MAX_RECENT_REPLY_WINDOW: int = 50
 MIN_RUNTIME_HINT_CHARS: int = 80  # 运行时提示最小字符数（完整短语装入，不截半）
-MAX_RUNTIME_HINT_CHARS: int = 157  # 上限按入库口径 53 前缀 + 5×20 + 4 分隔估得；渲染后单项最长 22 字
+# 上限要装得下 5 个避用项的最坏组合：47 字块头 + 最长内置指令 22 + 4×20 字自定义词 + 4 分隔 = 153。
+MAX_RUNTIME_HINT_CHARS: int = 157
 
 # 检测口径
 OPENER_REPEAT_THRESHOLD: int = 3  # 同一开头在窗口内达3次才视为重复（降低误报）

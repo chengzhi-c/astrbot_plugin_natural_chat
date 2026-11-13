@@ -16,13 +16,33 @@ from .protocols import ProviderRequestProtocol, TextPartFactoryProtocol
 
 # 所有注入 marker 的公共前缀
 INJECTED_MARKER_PREFIX = "[Natural Chat"
+# 4.0.0 更名前的注入前缀。老版本写进历史或在途请求里的自家块仍要按自家块清理，
+# 否则升级后这些块会永久留在上下文里，与现行规则重复。
+LEGACY_MARKER_PREFIX = "[Human Chat Quality"
 # 规则版本：规则正文变动时 +1，旧块在新版本下会被当作历史块清理
 RULES_VERSION = 24
 STABLE_RULE_MARKER = f"{INJECTED_MARKER_PREFIX} Rules v{RULES_VERSION}]"
 RUNTIME_HINT_MARKER = f"{INJECTED_MARKER_PREFIX} Runtime]"
+LEGACY_RUNTIME_HINT_MARKER = f"{LEGACY_MARKER_PREFIX} Runtime]"
 _RUNTIME_INSTRUCTION = "本轮避开这些重复项，换种自然说法，别提本提示："
+# 0.2.0–1.1.x 的运行时提示文案。与现行文案不同，不单独认就会判成 ambiguous（永不清理）。
+_LEGACY_RUNTIME_INSTRUCTION = (
+    "仅用于本轮回复的轻量状态：这些开头或说法最近已出现过，本轮换个自然说法，别再用，也别提到这条提示。"
+)
 _RUNTIME_PREFIX = f"{RUNTIME_HINT_MARKER}\n{_RUNTIME_INSTRUCTION}\n"
+# 旧 header 配过两套指令文案：1.2.0 起换成现行文案，更早的另有一套。两套都要认。
+_LEGACY_RUNTIME_PREFIXES = (
+    f"{LEGACY_RUNTIME_HINT_MARKER}\n{_RUNTIME_INSTRUCTION}\n",
+    f"{LEGACY_RUNTIME_HINT_MARKER}\n{_LEGACY_RUNTIME_INSTRUCTION}\n",
+)
 _RUNTIME_ITEM_SEPARATOR = "、"
+
+
+def _has_owned_prefix(text: str) -> bool:
+    """廉价前置判据：不含任一自家前缀的普通消息不必做后续校验。"""
+    return INJECTED_MARKER_PREFIX in text or LEGACY_MARKER_PREFIX in text
+
+
 _LITE_CORE = """natural-talk 轻量注入版
 
 定位：只管日常对话与日常工作的回复质量；成文类任务（作文章、写小说、改稿）不适用本规则。
@@ -63,7 +83,9 @@ _PLUGIN_EXTRAS = (
     "- 用户明确要求技术步骤、对比或指定格式时，以任务完成为先\n"
     "- 不要把这些约束写进回复"
 )
-_HISTORY_RULES_MARKER_RE = re.compile(r"^[ \t]*\[Natural Chat Rules v\d+\][ \t]*$")
+_HISTORY_RULES_MARKER_RE = re.compile(
+    r"^[ \t]*\[(?:Natural Chat|Human Chat Quality) Rules(?: v\d+)?\][ \t]*$"
+)
 _NEWLINE_RE = re.compile(r"\r\n|\r|\n")
 _LEADING_SEPARATOR_RE = re.compile(r"^(?:(?:\r\n|\r|\n)){2}")
 _TRAILING_SEPARATOR_RE = re.compile(r"(?:(?:\r\n|\r|\n)){2}$")
@@ -99,14 +121,32 @@ def _signature(text: str) -> tuple[int, str]:
 
 
 _STABLE_SIG_LINES, _STABLE_SIG_HASH = _signature(build_stable_rules())
+# 4.0.0 更名前写进 system_prompt 的规则块：前缀不同，按行首 marker 整段剥离即可。
+# 不按内容签名校验——老版本的规则正文已经不同，按签名永远匹配不上，块会永久留在人设里。
+# 无版本号形态是 0.2.0–1.1.x 写进 system_prompt 的 marker，1.2.0 的 LEGACY_STABLE_MARKERS 可证。
+_LEGACY_STABLE_MARKER_RE = re.compile(r"^[ \t]*\[Human Chat Quality Rules(?: v\d+)?\][ \t]*$")
+# 各已发布版本 build_stable_rules() 的 (行数, 内容 SHA-256)。
+# 旧块的正文随版本变化，靠找锚点/空行猜边界必然在「删太多」和「删不掉」之间摆动；
+# 但它是各版本固定生成的字符串，直接按签名精确匹配即可：命中即整块删除，不命中一律不动。
+# 生成方式见 scripts/gen_legacy_signatures.py。
+_LEGACY_STABLE_SIGNATURES: tuple[tuple[int, str], ...] = (
+    (11, "cf703f9e2436a2e2f676c386f3e2673a6ac9c61e769268f411e96fcb16166aa2"),  # 0.2.0
+    (39, "9f27e5df3f368f9cdc8ff0c2cd6bfc075365af0024dfe67c8ed3a21374d2fa82"),  # 0.5.2 / 0.5.3
+    (7, "c33073fcaaca430cba3ab648f7a8df8bdf1c85b6c1d7c71025ce53896771e731"),  # 0.6.2 / 0.8.0
+    (25, "c7787f6c38c128dab5b3781365516257af5a35f915766851b870828cd97e3f8f"),  # 1.2.0
+    (28, "2ff440645532f44c9e081e2848761e0382176c0c8f9d04140fd2637a51ba52a8"),  # 1.3.0 / 2.1.0 / 2.3.0
+    (37, "8dfdc46ca7bdb45b86a6bcb14f8a2e15ecde76582dc4f9fe41753551ac8a4c33"),  # 3.3.0
+    (39, "46d8ee9b98ef25b9e8d86702c756b2c92a3c295e7dfefeca924911e0bc6681b2"),  # 3.10.1
+)
 
 
 def rewrite_stable_rules(system_prompt: str | None, *, enabled: bool) -> StableRewriteResult:
     """幂等写入固定规则块：开关关闭时剥离自家块，用户改过的块原样保留不再重复注入。"""
     text = system_prompt if isinstance(system_prompt, str) else ""
     matches, current_present, ambiguous = _find_stable_blocks(text)
+    legacy_spans = _find_legacy_stable_blocks(text)
     current_kept = False
-    removals: list[tuple[int, int]] = []
+    removals: list[tuple[int, int]] = list(legacy_spans)
 
     for start, end, _marker in matches:
         if enabled and not current_kept:
@@ -136,6 +176,41 @@ def rewrite_stable_rules(system_prompt: str | None, *, enabled: bool) -> StableR
     return StableRewriteResult(text, injected, len(removals), ambiguous)
 
 
+def _match_legacy_block(lines: list[str], starts: list[int], index: int, text: str) -> int:
+    """从 index 行起尝试各版本旧规则块签名，命中返回块末字符偏移，否则返回 -1。"""
+    for line_count, digest in _LEGACY_STABLE_SIGNATURES:
+        last = index + line_count - 1
+        if last >= len(lines):
+            continue
+        end = starts[last] + len(lines[last].rstrip("\r\n"))
+        candidate = _normalize_newlines(text[starts[index] : end])
+        if hashlib.sha256(candidate.encode()).hexdigest() == digest:
+            return end
+    return -1
+
+
+def _find_legacy_stable_blocks(text: str) -> list[tuple[int, int]]:
+    """定位更名前写进 system_prompt 的规则块，返回待删区间。
+
+    只删与某个已发布版本逐字节相同的整块。用户改过、截断过、在块后追加过内容的，
+    签名对不上，一律保留——删不准就是删掉用户的人设，代价远大于留一段重复规则。
+    """
+    lines = text.splitlines(keepends=True)
+    starts: list[int] = []
+    offset = 0
+    for line in lines:
+        starts.append(offset)
+        offset += len(line)
+    spans: list[tuple[int, int]] = []
+    for index, line in enumerate(lines):
+        if not _LEGACY_STABLE_MARKER_RE.match(line.rstrip("\r\n")):
+            continue
+        end = _match_legacy_block(lines, starts, index, text)
+        if end >= 0:
+            spans.append(_expand_stable_removal(text, starts[index], end))
+    return spans
+
+
 def rewrite_context_injections(req: ProviderRequestProtocol, runtime_text: str | None) -> ContextRewriteResult:
     """清理历史里的自家注入块，并在当前请求的附加内容里保留至多一个匹配提示。"""
     result = ContextRewriteResult()
@@ -148,7 +223,8 @@ def rewrite_context_injections(req: ProviderRequestProtocol, runtime_text: str |
             if isinstance(content, str):
                 rewritten, item_result = _rewrite_history_text(content)
                 if rewritten != content:
-                    ctx["content"] = rewritten
+                    # 整块被清空时留一个空格：空串消息在部分适配器上会渲染成空气泡
+                    ctx["content"] = rewritten if rewritten else " "
             elif isinstance(content, list):
                 # 逐 part 就地删（子列表）或用等长判定（新构造列表），避免依赖 TextPart 的 __eq__
                 rewritten, item_result, changed = _rewrite_history_parts(content)
@@ -225,8 +301,24 @@ def _expand_stable_removal(text: str, start: int, end: int) -> tuple[int, int]:
     return start, end
 
 
+def _merge_spans(spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """合并相交/相邻区间。
+
+    _expand_stable_removal 在块位于文本开头时会把后面的空行吸进来，相邻两个旧块因此可能
+    各吸同一段空行、区间重叠。不合并就按降序切会在已截短的串上再切一次，多删字符
+    （实测能吃掉下一个块的 marker 首字符，导致下一轮重复注入）。
+    """
+    merged: list[tuple[int, int]] = []
+    for start, end in sorted(spans):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
 def _remove_spans(text: str, spans: list[tuple[int, int]]) -> str:
-    for start, end in sorted(spans, reverse=True):
+    for start, end in sorted(_merge_spans(spans), reverse=True):
         text = text[:start] + text[end:]
     return text
 
@@ -245,7 +337,7 @@ def _text_value(part: Any) -> str | None:
 
 def _is_known_stable_text(text: str) -> bool:
     # 廉价前置判据：不含自家前缀的普通消息直接判非 owned，省掉每条历史的 SHA-256
-    if INJECTED_MARKER_PREFIX not in text:
+    if not _has_owned_prefix(text):
         return False
     normalized = _normalize_newlines(text)
     lines = normalized.splitlines()
@@ -255,26 +347,54 @@ def _is_known_stable_text(text: str) -> bool:
 
 
 def _is_history_rules_block(text: str) -> bool:
-    if INJECTED_MARKER_PREFIX not in text:
+    """历史里整条消息就是一块完整规则时才删。
+
+    两种形态都是自家残留：
+    1. 只有 marker 一行的空壳（旧版剥离后留下的占位）；
+    2. 完整的多行规则块（0.5.2/0.6.2 的 cache_friendly 模式把它塞进 extra parts，
+       在 4.23.x 上会随本轮写进历史）。
+
+    只认首行 marker 就删会误伤「贴一段旧版日志来问原因」——那正是本插件最常见的求助场景，
+    用户的日志正文会被整条抹掉。所以多行形态同样要求与某个已发布版本逐字节相同；
+    用户在块后追加追问、或改动过任何一个字，签名都对不上，整条消息保留。
+    """
+    if not _has_owned_prefix(text):
         return False
-    first = _normalize_newlines(text).splitlines()[:1]
-    return bool(first and _HISTORY_RULES_MARKER_RE.match(first[0]))
+    normalized = _normalize_newlines(text)
+    lines = normalized.splitlines(keepends=True)
+    if not lines or not _HISTORY_RULES_MARKER_RE.match(lines[0].rstrip("\r\n")):
+        return False
+    if len(lines) == 1:
+        return True
+    starts = [0]
+    for line in lines[:-1]:
+        starts.append(starts[-1] + len(line))
+    return _match_legacy_block(lines, starts, 0, normalized) >= 0
 
 
 def _runtime_kind(text: str) -> str:
-    if INJECTED_MARKER_PREFIX not in text:
+    if not _has_owned_prefix(text):
         return "ordinary"
     normalized = _normalize_newlines(text)
     lines = normalized.splitlines()
-    if not lines or lines[0] != RUNTIME_HINT_MARKER:
+    if not lines:
         return "ordinary"
-    return "owned" if _is_complete_runtime(normalized) else "ambiguous"
+    for header, prefixes in (
+        (RUNTIME_HINT_MARKER, (_RUNTIME_PREFIX,)),
+        (LEGACY_RUNTIME_HINT_MARKER, _LEGACY_RUNTIME_PREFIXES),
+    ):
+        if lines[0] != header:
+            continue
+        if any(_is_complete_runtime(normalized, prefix) for prefix in prefixes):
+            return "owned"
+        return "ambiguous"
+    return "ordinary"
 
 
-def _is_complete_runtime(text: str) -> bool:
-    if not text.startswith(_RUNTIME_PREFIX):
+def _is_complete_runtime(text: str, prefix: str = _RUNTIME_PREFIX) -> bool:
+    if not text.startswith(prefix):
         return False
-    items = text[len(_RUNTIME_PREFIX) :].split(_RUNTIME_ITEM_SEPARATOR)
+    items = text[len(prefix) :].split(_RUNTIME_ITEM_SEPARATOR)
     return 1 <= len(items) <= MAX_AVOID_ITEMS and all(
         0 < len(item) <= _RUNTIME_ITEM_MAX_LEN and "\n" not in item for item in items
     )
@@ -410,15 +530,32 @@ def make_text_part(text: str, factory: TextPartFactoryProtocol | None = None) ->
     """构造临时文本 part；factory 为 None 时返回 None（调用方自行降级）。
 
     provider 对未知 part 类型会直接抛错，故失败时不得产出伪 part。
+    宿主支持 part 级临时标记（4.24.5 起）时顺手标上：提示不进对话历史，也就不必每轮再删。
     """
     if factory is None:
         return None
     try:
-        return factory(text=text)
+        part = factory(text=text)
     except Exception as e:
         if logger is not None:
-            logger.error(f"[NaturalChat] make_text_part failed: {e}")
+            # 只打异常类型：pydantic 的错误文本会带 input_value，可能回显聊天原文或自定义词
+            logger.error(f"[NaturalChat] make_text_part failed: {type(e).__name__}")
         return None
+    if part is None:
+        return None
+    mark = getattr(part, "mark_as_temp", None)
+    if callable(mark):
+        try:
+            mark()
+        except Exception as e:
+            if logger is not None:
+                logger.error(f"[NaturalChat] mark_as_temp failed: {e}")
+    return part
+
+
+def text_part_ready(factory: TextPartFactoryProtocol | None = None) -> bool:
+    """工厂可用性探针：状态文案要反映真实能力，不能把「配置了工厂」当成「能注入」。"""
+    return make_text_part("", factory) is not None
 
 
 def append_temp_text_part(

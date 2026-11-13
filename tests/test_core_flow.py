@@ -230,6 +230,35 @@ class StatusTextTest(CoreCase):
         self.assertIn("当前会话：启用", text)
         self.assertIn("尚未形成", text)
 
+    def test_status_reports_unusable_factory(self) -> None:
+        """回归：工厂接了线但宿主产不出 part 时，状态不能报「启用」。"""
+
+        def broken(*, text: str):
+            raise RuntimeError("host has no TextPart")
+
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        store = RuntimeStateStore(Path(temp_dir.name) / "state.json", retention_days=14, recent_reply_window=8)
+        core = NaturalChatCore(AppConfig(), store, text_part_factory=broken)
+        text = core.status_text("test:GroupMessage:1", FakeEvent("在吗"))
+        self.assertIn("宿主临时文本部件不可用", text)
+
+    def test_disabled_runtime_state_does_not_probe_the_factory(self) -> None:
+        """关闭动态提醒时不该调工厂：探测失败会刷 ERROR，而这一轮根本没打算注入。"""
+        calls = []
+
+        def factory(*, text: str):
+            calls.append(text)
+            raise RuntimeError("host has no TextPart")
+
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        store = RuntimeStateStore(Path(temp_dir.name) / "state.json", retention_days=14, recent_reply_window=8)
+        core = NaturalChatCore(AppConfig(inject_runtime_state=False), store, text_part_factory=factory)
+        text = core.status_text("test:GroupMessage:1", FakeEvent("在吗"))
+        self.assertIn("配置关闭", text)
+        self.assertEqual(calls, [])
+
     def test_config_ignored_entries_are_reported(self) -> None:
         temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(temp_dir.cleanup)

@@ -61,7 +61,7 @@
     "description": "调试日志",
     "type": "bool",
     "default": false,
-    "hint": "开启后输出调试级别日志。",
+    "hint": "每轮输出本次注入与清理的日志（info 级，不含聊天正文与避用词原文）。",
     "condition": {"enabled": true}
   }
 }

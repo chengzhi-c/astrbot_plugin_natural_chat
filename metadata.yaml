@@ -1,7 +1,7 @@
 name: astrbot_plugin_natural_chat
 display_name: 自然对话 - 说人话
 desc: 尽量去除常见AI腔，让回复更像真人说话
-version: 4.0.0
+version: 4.0.1
 author: chengzhi-c
 license: GPL-3.0
 repo: "https://github.com/chengzhi-c/astrbot_plugin_natural_chat"

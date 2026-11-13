@@ -28,6 +28,7 @@ from .rules import (
     rewrite_context_injections,
     rewrite_stable_rules,
     select_runtime_hint_names,
+    text_part_ready,
 )
 from .runtime_state import RuntimeStateStore, is_session_disabled, unified_origin
 from .scene_guard import event_text, is_sticky_followup, is_tone_request
@@ -173,7 +174,6 @@ class NaturalChatCore:
         effective_active = not yield_reason and self._is_effectively_active(session_id, event)
 
         hint = ""
-        selected_names: tuple[str, ...] = ()
         if effective_active and self.cfg.inject_runtime_state and self.text_part_factory is not None:
             # 危害排序与入库截断同口径：档 1（可靠性损害）先占名额。
             # 落盘的自定义词是序号标签，注入前还原成原文；还原不了（配置已改）就跳过。
@@ -205,6 +205,8 @@ class NaturalChatCore:
             stable_result = StableRewriteResult(text="", injected=False, removed=0, ambiguous=False)
 
         self.stats.record_request(stable_result.injected, bool(injected_hint))
+        # 只记真正删掉的：删不掉的块（ambiguous / 找不到尾锚点）下一轮还会被统计一次，
+        # 累加会一路虚增，把 /natural stats 变成假信号。
         self.stats.stale_blocks_removed += (
             stable_result.removed + context_result.stable_removed + context_result.runtime_removed
         )
@@ -283,9 +285,12 @@ class NaturalChatCore:
         state = self.store.get(session_id)
         resolved = [name for name in map(self.store.resolve_name, state.avoid_openers) if name]
         avoid = "、".join(resolved) if resolved else "无（尚未形成重复或套话信号）"
+        # 工厂存在只说明「接了线」，能不能产出 part 要看宿主版本：状态必须报真实能力。
+        # 功能关闭时不去探测：探测失败会打 ERROR 日志，而这一轮根本没打算注入。
+        runtime_ready = self.cfg.inject_runtime_state and text_part_ready(self.text_part_factory)
         if not self.cfg.inject_runtime_state:
             runtime_line = "- 运行时提示：配置关闭"
-        elif self.text_part_factory is None:
+        elif not runtime_ready:
             runtime_line = "- 运行时提示：已配置，但宿主临时文本部件不可用"
         else:
             runtime_line = "- 运行时提示：启用"
@@ -304,7 +309,7 @@ class NaturalChatCore:
                 if ignored.get(reason)
             )
             lines.append(f"- 配置忽略：{sum(ignored.values())} 项（{details}）")
-        if resolved and self.cfg.inject_runtime_state and self.text_part_factory is not None:
+        if resolved and self.cfg.inject_runtime_state and runtime_ready:
             lines.append("- 下一轮请求会带上动态提醒")
         lines.append(f"- 自启动以来累计注入：{self.stats.total_injections} 次")
         lines.append(f"- 状态持久化：{persistence}")

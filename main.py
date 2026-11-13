@@ -39,23 +39,37 @@ PLUGIN_VERSION = _read_metadata_version()
 
 
 _TEXT_PART_CLS: Any | None = None
+_TEXT_PART_WARNED = False
 
 
 def _probe_text_part_cls() -> Any | None:
     """探测 TextPart 类，成功即缓存。
 
     TextPart 未出现在 astrbot.api 的公开导出里，只能走内部路径，因此探测失败要能重试，
-    不能用 lru_cache 把失败结果钉死到进程结束。
+    不能用 lru_cache 把失败结果钉死到进程结束。失败告警只打一次：工厂每轮都会被调用，
+    不复用告警会把日志刷满。
     """
-    global _TEXT_PART_CLS
+    global _TEXT_PART_CLS, _TEXT_PART_WARNED
     if _TEXT_PART_CLS is None:
         try:
             from astrbot.core.agent.message import TextPart
 
             _TEXT_PART_CLS = TextPart
         except Exception as e:
-            logger.warning(f"[NaturalChat] TextPart unavailable, runtime hint injection disabled: {e}")
+            if not _TEXT_PART_WARNED:
+                _TEXT_PART_WARNED = True
+                logger.warning(f"[NaturalChat] TextPart unavailable, runtime hint injection disabled: {e}")
     return _TEXT_PART_CLS
+
+
+def _make_text_part(*, text: str) -> Any | None:
+    """把探测到的 TextPart 类包成工厂。
+
+    core 侧按 `factory(text=...)` 调用；探测失败返回 None，由调用方降级。
+    每次调用都重新探测，宿主升级或热重载后不必重启进程。
+    """
+    cls = _probe_text_part_cls()
+    return cls(text=text) if cls is not None else None
 
 
 LEGACY_PLUGIN_ID = "astrbot_plugin_human_chat_quality"
@@ -104,8 +118,8 @@ class NaturalChatPlugin(Star):
             recent_reply_window=cfg.recent_reply_window,
             custom_cliches=cfg.custom_cliches,
         )
-        # 传函数本身而非调用结果：探测失败要在下一轮还能重试，不能把 None 钉死在 core 里。
-        self.core = NaturalChatCore(cfg, self.store, text_part_factory=_probe_text_part_cls)
+        # 传工厂而非探测结果：探测失败要在下一轮还能重试，不能把 None 钉死在 core 里。
+        self.core = NaturalChatCore(cfg, self.store, text_part_factory=_make_text_part)
         logger.info(
             f"[NaturalChat] plugin loaded, version={PLUGIN_VERSION}, "
             f"sessions={len(self.store.sessions)}, custom_cliches={len(self.store.custom_cliches)}, "
@@ -181,7 +195,7 @@ class NaturalChatPlugin(Star):
             f"  └ 固定规则：{stats.stable_rules_injected} 次",
             f"  └ 动态提醒：{stats.runtime_hints_injected} 次",
             f"- 记录避用项：{stats.avoid_openers_seen} 项次",
-            f"- 清理旧注入块：{stats.stale_blocks_removed} 个",
+            f"- 清理旧注入块：{stats.stale_blocks_removed} 次（宿主每轮重建旧块时会重复计入）",
         ]
         top_signals = stats.top_signals(5)
         if top_signals:
