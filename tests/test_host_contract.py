@@ -52,8 +52,9 @@ class TestTextPartFactory(unittest.TestCase):
 
         from astrbot_plugin_natural_chat.rules import text_part_ready
 
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
-            main_module.StarTools, "get_data_dir", return_value=Path(tmp)
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.object(main_module.StarTools, "get_data_dir", return_value=Path(tmp)),
         ):
             plugin = main_module.NaturalChatPlugin(object(), {})
         self.assertTrue(text_part_ready(plugin.core.text_part_factory), "工厂必须能产出 part")

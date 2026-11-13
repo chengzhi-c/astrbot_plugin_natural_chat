@@ -83,9 +83,7 @@ _PLUGIN_EXTRAS = (
     "- 用户明确要求技术步骤、对比或指定格式时，以任务完成为先\n"
     "- 不要把这些约束写进回复"
 )
-_HISTORY_RULES_MARKER_RE = re.compile(
-    r"^[ \t]*\[(?:Natural Chat|Human Chat Quality) Rules(?: v\d+)?\][ \t]*$"
-)
+_HISTORY_RULES_MARKER_RE = re.compile(r"^[ \t]*\[(?:Natural Chat|Human Chat Quality) Rules(?: v\d+)?\][ \t]*$")
 _NEWLINE_RE = re.compile(r"\r\n|\r|\n")
 _LEADING_SEPARATOR_RE = re.compile(r"^(?:(?:\r\n|\r|\n)){2}")
 _TRAILING_SEPARATOR_RE = re.compile(r"(?:(?:\r\n|\r|\n)){2}$")
